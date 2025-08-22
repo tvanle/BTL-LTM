@@ -1,0 +1,111 @@
+# ----------------------------------------------------
+# Java / Maven
+# ----------------------------------------------------
+/target/
+*.class
+
+# Maven release/versions plugin backups
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+buildNumber.properties
+dependency-reduced-pom.xml
+.flattened-pom.xml
+.mvn/timing.properties
+
+# Package outputs (keep artifacts out of repo)
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# Test & reports
+surefire-reports/
+failsafe-reports/
+jacoco.exec
+.site/
+
+# ----------------------------------------------------
+# IDEs & Editors
+# ----------------------------------------------------
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# NetBeans
+nbproject/private/
+build/
+dist/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# VS Code
+.vscode/
+
+# General editor junk
+*.swp
+*.swo
+*~
+*.tmp
+/tmp/
+/tmp/**
+
+# Common output folders
+/out/
+/bin/
+
+# ----------------------------------------------------
+# OS files
+# ----------------------------------------------------
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ----------------------------------------------------
+# Logs
+# ----------------------------------------------------
+*.log
+*.log.*
+logs/
+
+# ----------------------------------------------------
+# Frontend (if present)
+# ----------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ----------------------------------------------------
+# Local env/config
+# ----------------------------------------------------
+.env
+.env.*
+
+# Spring tooling
+.springBeans
