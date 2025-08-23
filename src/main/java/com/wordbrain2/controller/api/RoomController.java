@@ -48,13 +48,23 @@ public class RoomController {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing required fields"));
         }
         
+        // Validate room code format (must be 6 uppercase characters)
+        if (roomCode.length() != 6 || !roomCode.matches("[A-Z0-9]{6}")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid room code format"));
+        }
+        
+        // Check if room exists
+        if (!roomService.roomExists(roomCode)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Room does not exist"));
+        }
+        
         var result = roomService.joinRoom(roomCode, playerName, sessionId != null ? sessionId : "");
         
         if (result != null) {
             return ResponseEntity.ok(result);
         }
         
-        return ResponseEntity.badRequest().body(Map.of("error", "Failed to join room"));
+        return ResponseEntity.badRequest().body(Map.of("error", "Failed to join room - Room may be full or already started"));
     }
     
     @GetMapping("/{roomCode}")

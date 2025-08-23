@@ -187,8 +187,20 @@ class App {
                 
                 // Show lobby
                 this.showLobby();
+                
+                // Show success message
+                this.showNotification(`Successfully joined room ${roomCode}`, 'success');
             } else {
-                alert('Failed to join room');
+                const errorData = await response.json();
+                const errorMessage = errorData.error || 'Failed to join room';
+                
+                // Show specific error message
+                this.showNotification(errorMessage, 'error');
+                
+                // Clear room code input if room doesn't exist
+                if (errorMessage.includes('does not exist')) {
+                    document.getElementById('room-code').value = '';
+                }
             }
         } catch (error) {
             console.error('Error joining room:', error);
@@ -434,6 +446,54 @@ class App {
             
             finalLeaderboard.appendChild(item);
         });
+    }
+    
+    showNotification(message, type) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 10000;
+            animation: slideDown 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        `;
+        
+        // Set background color based on type
+        switch (type) {
+            case 'success':
+                notification.style.background = '#28a745';
+                break;
+            case 'error':
+                notification.style.background = '#dc3545';
+                break;
+            case 'warning':
+                notification.style.background = '#ffc107';
+                break;
+            case 'info':
+            default:
+                notification.style.background = '#17a2b8';
+        }
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // Remove notification after 4 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideUp 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
+        }, 4000);
     }
 }
 
