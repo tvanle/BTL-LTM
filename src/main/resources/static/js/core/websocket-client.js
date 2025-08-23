@@ -125,6 +125,10 @@ class WebSocketClient {
                 case 'ERROR':
                     this.handleError(message.data);
                     break;
+
+                case 'INVALID_ACTION':
+                    this.handleInvalidAction(message.data);
+                    break;
                     
                 default:
                     console.log('Unknown message type:', message.type);
@@ -235,6 +239,12 @@ class WebSocketClient {
     handleError(data) {
         console.error('Server error:', data);
         this.showNotification(data.error || 'An error occurred', 'error');
+    }
+
+    handleInvalidAction(data) {
+        console.warn('Invalid action:', data);
+        const reason = (data && (data.reason || data.error)) || 'Hành động không hợp lệ';
+        this.showNotification(reason, 'warning');
     }
     
     applyFreezeEffect(duration) {
