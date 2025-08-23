@@ -16,6 +16,14 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(gameWebSocketHandler, "/game")
-                .setAllowedOrigins("*");
+                // Use patterns to allow localhost and ngrok subdomains over http/https
+                .setAllowedOriginPatterns(
+                    "http://localhost:*",
+                    "https://localhost:*",
+                    "http://127.0.0.1:*",
+                    "https://127.0.0.1:*",
+                    "https://*.ngrok.io",
+                    "https://*.ngrok-free.app"
+                );
     }
 }

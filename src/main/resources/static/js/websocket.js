@@ -13,6 +13,9 @@ class GameWebSocket {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/game`;
             
+            // Log the URL we are attempting to connect to for easier debugging
+            console.log(`Attempting to connect to WebSocket: ${wsUrl}`);
+            
             this.socket = new WebSocket(wsUrl);
             
             this.socket.onopen = (event) => {

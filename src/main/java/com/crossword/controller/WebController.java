@@ -10,9 +10,4 @@ public class WebController {
     public String index() {
         return "index.html";
     }
-    
-    @GetMapping("/game")
-    public String game() {
-        return "index.html";
-    }
 }
