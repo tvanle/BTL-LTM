@@ -1,0 +1,309 @@
+package com.wordbrain2.websocket.handler;
+
+import com.google.gson.Gson;
+import com.wordbrain2.model.enums.MessageType;
+import com.wordbrain2.service.core.GameEngine;
+import com.wordbrain2.service.core.RoomService;
+import com.wordbrain2.websocket.message.BaseMessage;
+import com.wordbrain2.websocket.message.GameMessage;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Slf4j
+@Component
+public class GameWebSocketHandler extends TextWebSocketHandler {
+    
+    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, String> sessionToPlayer = new ConcurrentHashMap<>();
+    private final Map<String, String> playerToRoom = new ConcurrentHashMap<>();
+    
+    private final GameEngine gameEngine;
+    private final RoomService roomService;
+    private final Gson gson;
+    
+    public GameWebSocketHandler(GameEngine gameEngine, RoomService roomService) {
+        this.gameEngine = gameEngine;
+        this.roomService = roomService;
+        this.gson = new Gson();
+    }
+    
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        log.info("WebSocket connection established: {}", session.getId());
+        sessions.put(session.getId(), session);
+        
+        // Send connection success message
+        BaseMessage welcomeMessage = new BaseMessage();
+        welcomeMessage.setType(MessageType.PLAYER_JOINED);
+        welcomeMessage.setData(Map.of(
+            "sessionId", session.getId(),
+            "message", "Connected to game server"
+        ));
+        
+        session.sendMessage(new TextMessage(gson.toJson(welcomeMessage)));
+    }
+    
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        try {
+            String payload = message.getPayload();
+            log.debug("Received message: {}", payload);
+            
+            GameMessage gameMessage = gson.fromJson(payload, GameMessage.class);
+            
+            switch (gameMessage.getType()) {
+                case CREATE_ROOM:
+                    handleCreateRoom(session, gameMessage);
+                    break;
+                    
+                case JOIN_ROOM:
+                    handleJoinRoom(session, gameMessage);
+                    break;
+                    
+                case LEAVE_ROOM:
+                    handleLeaveRoom(session, gameMessage);
+                    break;
+                    
+                case PLAYER_READY:
+                    handlePlayerReady(session, gameMessage);
+                    break;
+                    
+                case START_GAME:
+                    handleStartGame(session, gameMessage);
+                    break;
+                    
+                case SUBMIT_WORD:
+                    handleSubmitWord(session, gameMessage);
+                    break;
+                    
+                case USE_BOOSTER:
+                    handleUseBooster(session, gameMessage);
+                    break;
+                    
+                default:
+                    log.warn("Unknown message type: {}", gameMessage.getType());
+            }
+            
+        } catch (Exception e) {
+            log.error("Error handling message", e);
+            sendError(session, "Error processing message: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+        log.info("WebSocket connection closed: {} - {}", session.getId(), status);
+        
+        String playerId = sessionToPlayer.remove(session.getId());
+        if (playerId != null) {
+            String roomCode = playerToRoom.remove(playerId);
+            if (roomCode != null) {
+                roomService.removePlayer(roomCode, playerId);
+                broadcastToRoom(roomCode, MessageType.PLAYER_LEFT, Map.of(
+                    "playerId", playerId,
+                    "message", "Player disconnected"
+                ));
+            }
+        }
+        
+        sessions.remove(session.getId());
+    }
+    
+    private void handleCreateRoom(WebSocketSession session, GameMessage message) {
+        Map<String, Object> data = (Map<String, Object>) message.getData();
+        String playerName = (String) data.get("playerName");
+        String topic = (String) data.get("topic");
+        
+        var result = roomService.createRoom(playerName, topic, session.getId());
+        
+        if (result != null) {
+            String roomCode = (String) result.get("roomCode");
+            String playerId = (String) result.get("playerId");
+            
+            sessionToPlayer.put(session.getId(), playerId);
+            playerToRoom.put(playerId, roomCode);
+            
+            sendMessage(session, MessageType.ROOM_CREATED, result);
+        } else {
+            sendError(session, "Failed to create room");
+        }
+    }
+    
+    private void handleJoinRoom(WebSocketSession session, GameMessage message) {
+        Map<String, Object> data = (Map<String, Object>) message.getData();
+        String roomCode = (String) data.get("roomCode");
+        String playerName = (String) data.get("playerName");
+        
+        var result = roomService.joinRoom(roomCode, playerName, session.getId());
+        
+        if (result != null) {
+            String playerId = (String) result.get("playerId");
+            
+            sessionToPlayer.put(session.getId(), playerId);
+            playerToRoom.put(playerId, roomCode);
+            
+            sendMessage(session, MessageType.ROOM_JOINED, result);
+            
+            // Notify other players
+            broadcastToRoom(roomCode, MessageType.PLAYER_JOINED, Map.of(
+                "playerId", playerId,
+                "playerName", playerName
+            ), session.getId());
+        } else {
+            sendError(session, "Failed to join room");
+        }
+    }
+    
+    private void handleLeaveRoom(WebSocketSession session, GameMessage message) {
+        String playerId = sessionToPlayer.get(session.getId());
+        String roomCode = playerToRoom.get(playerId);
+        
+        if (roomCode != null && playerId != null) {
+            roomService.removePlayer(roomCode, playerId);
+            playerToRoom.remove(playerId);
+            
+            broadcastToRoom(roomCode, MessageType.PLAYER_LEFT, Map.of(
+                "playerId", playerId
+            ));
+        }
+    }
+    
+    private void handlePlayerReady(WebSocketSession session, GameMessage message) {
+        String playerId = sessionToPlayer.get(session.getId());
+        String roomCode = playerToRoom.get(playerId);
+        
+        if (roomCode != null && playerId != null) {
+            Map<String, Object> data = (Map<String, Object>) message.getData();
+            boolean ready = (boolean) data.get("ready");
+            
+            roomService.setPlayerReady(roomCode, playerId, ready);
+            
+            broadcastToRoom(roomCode, MessageType.PLAYER_READY, Map.of(
+                "playerId", playerId,
+                "ready", ready
+            ));
+        }
+    }
+    
+    private void handleStartGame(WebSocketSession session, GameMessage message) {
+        String playerId = sessionToPlayer.get(session.getId());
+        String roomCode = playerToRoom.get(playerId);
+        
+        if (roomCode != null && playerId != null) {
+            var gameState = gameEngine.startGame(roomCode);
+            
+            if (gameState != null) {
+                broadcastToRoom(roomCode, MessageType.GAME_STARTING, Map.of(
+                    "countdown", 5,
+                    "message", "Game starting in 5 seconds..."
+                ));
+                
+                // Schedule actual game start
+                // In production, use a scheduled executor
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(5000);
+                        var levelData = gameEngine.startLevel(roomCode, 1);
+                        broadcastToRoom(roomCode, MessageType.LEVEL_START, levelData);
+                    } catch (InterruptedException e) {
+                        log.error("Game start interrupted", e);
+                    }
+                }).start();
+            }
+        }
+    }
+    
+    private void handleSubmitWord(WebSocketSession session, GameMessage message) {
+        String playerId = sessionToPlayer.get(session.getId());
+        String roomCode = playerToRoom.get(playerId);
+        
+        if (roomCode != null && playerId != null) {
+            var result = gameEngine.submitWord(roomCode, playerId, message.getData());
+            
+            if (result != null) {
+                boolean correct = (boolean) result.get("correct");
+                
+                if (correct) {
+                    sendMessage(session, MessageType.WORD_ACCEPTED, result);
+                    broadcastToRoom(roomCode, MessageType.OPPONENT_SCORED, Map.of(
+                        "playerId", playerId,
+                        "points", result.get("points"),
+                        "word", result.get("word")
+                    ), session.getId());
+                } else {
+                    sendMessage(session, MessageType.WORD_REJECTED, result);
+                }
+                
+                // Update leaderboard
+                var leaderboard = gameEngine.getLeaderboard(roomCode);
+                broadcastToRoom(roomCode, MessageType.LEADERBOARD_UPDATE, leaderboard);
+            }
+        }
+    }
+    
+    private void handleUseBooster(WebSocketSession session, GameMessage message) {
+        String playerId = sessionToPlayer.get(session.getId());
+        String roomCode = playerToRoom.get(playerId);
+        
+        if (roomCode != null && playerId != null) {
+            var result = gameEngine.useBooster(roomCode, playerId, message.getData());
+            
+            if (result != null) {
+                sendMessage(session, MessageType.BOOSTER_APPLIED, result);
+                
+                // If booster affects others (like FREEZE), notify them
+                String boosterType = (String) ((Map<String, Object>) message.getData()).get("boosterType");
+                if ("FREEZE".equals(boosterType)) {
+                    broadcastToRoom(roomCode, MessageType.EFFECT_RECEIVED, Map.of(
+                        "effect", "FREEZE",
+                        "duration", 3000,
+                        "fromPlayer", playerId
+                    ), session.getId());
+                }
+            }
+        }
+    }
+    
+    private void sendMessage(WebSocketSession session, MessageType type, Object data) {
+        try {
+            BaseMessage message = new BaseMessage();
+            message.setType(type);
+            message.setData(data);
+            message.setTimestamp(System.currentTimeMillis());
+            
+            session.sendMessage(new TextMessage(gson.toJson(message)));
+        } catch (Exception e) {
+            log.error("Error sending message", e);
+        }
+    }
+    
+    private void sendError(WebSocketSession session, String error) {
+        sendMessage(session, MessageType.ERROR, Map.of("error", error));
+    }
+    
+    private void broadcastToRoom(String roomCode, MessageType type, Object data) {
+        broadcastToRoom(roomCode, type, data, null);
+    }
+    
+    private void broadcastToRoom(String roomCode, MessageType type, Object data, String excludeSessionId) {
+        var room = roomService.getRoom(roomCode);
+        if (room != null) {
+            room.getPlayers().values().forEach(player -> {
+                String sessionId = player.getSessionId();
+                if (!sessionId.equals(excludeSessionId)) {
+                    WebSocketSession session = sessions.get(sessionId);
+                    if (session != null && session.isOpen()) {
+                        sendMessage(session, type, data);
+                    }
+                }
+            });
+        }
+    }
+}

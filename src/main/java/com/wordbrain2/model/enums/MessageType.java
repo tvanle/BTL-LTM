@@ -1,0 +1,45 @@
+package com.wordbrain2.model.enums;
+
+public enum MessageType {
+    // Room Management
+    CREATE_ROOM,
+    JOIN_ROOM,
+    LEAVE_ROOM,
+    PLAYER_READY,
+    START_GAME,
+    
+    // Game Flow
+    GAME_STARTING,
+    LEVEL_START,
+    LEVEL_END,
+    GAME_END,
+    
+    // Player Actions
+    SUBMIT_WORD,
+    USE_BOOSTER,
+    REQUEST_HINT,
+    
+    // Server Responses
+    ROOM_CREATED,
+    ROOM_JOINED,
+    PLAYER_JOINED,
+    PLAYER_LEFT,
+    WORD_ACCEPTED,
+    WORD_REJECTED,
+    BOOSTER_APPLIED,
+    EFFECT_RECEIVED,
+    
+    // Real-time Updates
+    LEADERBOARD_UPDATE,
+    OPPONENT_SCORED,
+    TIMER_UPDATE,
+    PLAYER_DISCONNECTED,
+    PLAYER_RECONNECTED,
+    LEVEL_RESULTS,
+    NEXT_LEVEL_STARTING,
+    
+    // Error Messages
+    ERROR,
+    INVALID_ACTION,
+    TIMEOUT
+}
