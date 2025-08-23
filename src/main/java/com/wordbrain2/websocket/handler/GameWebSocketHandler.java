@@ -117,9 +117,9 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     }
     
     private void handleCreateRoom(WebSocketSession session, GameMessage message) {
-        Map<String, Object> data = (Map<String, Object>) message.getData();
-        String playerName = (String) data.get("playerName");
-        String topic = (String) data.get("topic");
+        Map<?, ?> data = (Map<?, ?>) message.getData();
+        String playerName = getString(data, "playerName");
+        String topic = getString(data, "topic");
         
         var result = roomService.createRoom(playerName, topic, session.getId());
         
@@ -137,9 +137,9 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     }
     
     private void handleJoinRoom(WebSocketSession session, GameMessage message) {
-        Map<String, Object> data = (Map<String, Object>) message.getData();
-        String roomCode = (String) data.get("roomCode");
-        String playerName = (String) data.get("playerName");
+        Map<?, ?> data = (Map<?, ?>) message.getData();
+        String roomCode = getString(data, "roomCode");
+        String playerName = getString(data, "playerName");
         
         var result = roomService.joinRoom(roomCode, playerName, session.getId());
         
@@ -162,111 +162,150 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     }
     
     private void handleLeaveRoom(WebSocketSession session, GameMessage message) {
-        String playerId = sessionToPlayer.get(session.getId());
-        String roomCode = playerToRoom.get(playerId);
-        
-        if (roomCode != null && playerId != null) {
-            roomService.removePlayer(roomCode, playerId);
-            playerToRoom.remove(playerId);
-            
-            broadcastToRoom(roomCode, MessageType.PLAYER_LEFT, Map.of(
-                "playerId", playerId
-            ));
+        String playerId = resolvePlayerId(session, message);
+        if (playerId == null) {
+            sendInvalidAction(session, "Bạn chưa tham gia phòng.");
+            return;
         }
+        String roomCode = resolveRoomCode(session, message, playerId);
+        if (roomCode == null) {
+            sendInvalidAction(session, "Không xác định phòng.");
+            return;
+        }
+        ensureSessionRegistered(session, playerId, roomCode);
+        
+        roomService.removePlayer(roomCode, playerId);
+        playerToRoom.remove(playerId);
+        
+        broadcastToRoom(roomCode, MessageType.PLAYER_LEFT, Map.of(
+            "playerId", playerId
+        ));
     }
     
     private void handlePlayerReady(WebSocketSession session, GameMessage message) {
-        String playerId = sessionToPlayer.get(session.getId());
-        String roomCode = playerToRoom.get(playerId);
-        
-        if (roomCode != null && playerId != null) {
-            Map<String, Object> data = (Map<String, Object>) message.getData();
-            boolean ready = (boolean) data.get("ready");
-            
-            roomService.setPlayerReady(roomCode, playerId, ready);
-            
-            broadcastToRoom(roomCode, MessageType.PLAYER_READY, Map.of(
-                "playerId", playerId,
-                "ready", ready
-            ));
+        String playerId = resolvePlayerId(session, message);
+        if (playerId == null) {
+            sendInvalidAction(session, "Bạn chưa tham gia phòng.");
+            return;
         }
+        String roomCode = resolveRoomCode(session, message, playerId);
+        if (roomCode == null) {
+            sendInvalidAction(session, "Không xác định phòng.");
+            return;
+        }
+        ensureSessionRegistered(session, playerId, roomCode);
+        
+        Map<?, ?> data = (Map<?, ?>) message.getData();
+        boolean ready = getBoolean(data, "ready");
+        
+        roomService.setPlayerReady(roomCode, playerId, ready);
+        
+        broadcastToRoom(roomCode, MessageType.PLAYER_READY, Map.of(
+            "playerId", playerId,
+            "ready", ready
+        ));
     }
     
     private void handleStartGame(WebSocketSession session, GameMessage message) {
-        String playerId = sessionToPlayer.get(session.getId());
-        String roomCode = playerToRoom.get(playerId);
+        String playerId = resolvePlayerId(session, message);
+        if (playerId == null) {
+            sendInvalidAction(session, "Bạn chưa tham gia phòng.");
+            return;
+        }
+        String roomCode = resolveRoomCode(session, message, playerId);
+        if (roomCode == null) {
+            sendInvalidAction(session, "Không xác định phòng.");
+            return;
+        }
+        ensureSessionRegistered(session, playerId, roomCode);
         
-        if (roomCode != null && playerId != null) {
-            var gameState = gameEngine.startGame(roomCode);
+        var gameState = gameEngine.startGame(roomCode);
+        
+        if (gameState != null) {
+            broadcastToRoom(roomCode, MessageType.GAME_STARTING, Map.of(
+                "countdown", 5,
+                "message", "Game starting in 5 seconds..."
+            ));
             
-            if (gameState != null) {
-                broadcastToRoom(roomCode, MessageType.GAME_STARTING, Map.of(
-                    "countdown", 5,
-                    "message", "Game starting in 5 seconds..."
-                ));
-                
-                // Schedule actual game start
-                // In production, use a scheduled executor
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(5000);
-                        var levelData = gameEngine.startLevel(roomCode, 1);
-                        broadcastToRoom(roomCode, MessageType.LEVEL_START, levelData);
-                    } catch (InterruptedException e) {
-                        log.error("Game start interrupted", e);
-                    }
-                }).start();
-            }
+            // Schedule actual game start
+            // In production, use a scheduled executor
+            new Thread(() -> {
+                try {
+                    Thread.sleep(5000);
+                    var levelData = gameEngine.startLevel(roomCode, 1);
+                    broadcastToRoom(roomCode, MessageType.LEVEL_START, levelData);
+                } catch (InterruptedException e) {
+                    log.error("Game start interrupted", e);
+                } catch (Exception ex) {
+                    log.error("Failed to start level", ex);
+                    broadcastToRoom(roomCode, MessageType.ERROR, Map.of("error", "Không thể bắt đầu level: " + ex.getMessage()));
+                }
+            }).start();
         }
     }
     
     private void handleSubmitWord(WebSocketSession session, GameMessage message) {
-        String playerId = sessionToPlayer.get(session.getId());
-        String roomCode = playerToRoom.get(playerId);
+        String playerId = resolvePlayerId(session, message);
+        if (playerId == null) {
+            sendInvalidAction(session, "Bạn chưa tham gia phòng.");
+            return;
+        }
+        String roomCode = resolveRoomCode(session, message, playerId);
+        if (roomCode == null) {
+            sendInvalidAction(session, "Không xác định phòng.");
+            return;
+        }
+        ensureSessionRegistered(session, playerId, roomCode);
         
-        if (roomCode != null && playerId != null) {
-            var result = gameEngine.submitWord(roomCode, playerId, message.getData());
+        var result = gameEngine.submitWord(roomCode, playerId, message.getData());
+        
+        if (result != null) {
+            boolean correct = Boolean.TRUE.equals(result.get("correct"));
             
-            if (result != null) {
-                boolean correct = (boolean) result.get("correct");
-                
-                if (correct) {
-                    sendMessage(session, MessageType.WORD_ACCEPTED, result);
-                    broadcastToRoom(roomCode, MessageType.OPPONENT_SCORED, Map.of(
-                        "playerId", playerId,
-                        "points", result.get("points"),
-                        "word", result.get("word")
-                    ), session.getId());
-                } else {
-                    sendMessage(session, MessageType.WORD_REJECTED, result);
-                }
-                
-                // Update leaderboard
-                var leaderboard = gameEngine.getLeaderboard(roomCode);
-                broadcastToRoom(roomCode, MessageType.LEADERBOARD_UPDATE, leaderboard);
+            if (correct) {
+                sendMessage(session, MessageType.WORD_ACCEPTED, result);
+                broadcastToRoom(roomCode, MessageType.OPPONENT_SCORED, Map.of(
+                    "playerId", playerId,
+                    "points", result.get("points"),
+                    "word", result.get("word")
+                ), session.getId());
+            } else {
+                sendMessage(session, MessageType.WORD_REJECTED, result);
             }
+            
+            // Update leaderboard
+            var leaderboard = gameEngine.getLeaderboard(roomCode);
+            broadcastToRoom(roomCode, MessageType.LEADERBOARD_UPDATE, leaderboard);
         }
     }
     
     private void handleUseBooster(WebSocketSession session, GameMessage message) {
-        String playerId = sessionToPlayer.get(session.getId());
-        String roomCode = playerToRoom.get(playerId);
+        String playerId = resolvePlayerId(session, message);
+        if (playerId == null) {
+            sendInvalidAction(session, "Bạn chưa tham gia phòng.");
+            return;
+        }
+        String roomCode = resolveRoomCode(session, message, playerId);
+        if (roomCode == null) {
+            sendInvalidAction(session, "Không xác định phòng.");
+            return;
+        }
+        ensureSessionRegistered(session, playerId, roomCode);
         
-        if (roomCode != null && playerId != null) {
-            var result = gameEngine.useBooster(roomCode, playerId, message.getData());
+        var result = gameEngine.useBooster(roomCode, playerId, message.getData());
+        
+        if (result != null) {
+            sendMessage(session, MessageType.BOOSTER_APPLIED, result);
             
-            if (result != null) {
-                sendMessage(session, MessageType.BOOSTER_APPLIED, result);
-                
-                // If booster affects others (like FREEZE), notify them
-                String boosterType = (String) ((Map<String, Object>) message.getData()).get("boosterType");
-                if ("FREEZE".equals(boosterType)) {
-                    broadcastToRoom(roomCode, MessageType.EFFECT_RECEIVED, Map.of(
-                        "effect", "FREEZE",
-                        "duration", 3000,
-                        "fromPlayer", playerId
-                    ), session.getId());
-                }
+            // If booster affects others (like FREEZE), notify them
+            Map<?, ?> data = (Map<?, ?>) message.getData();
+            String boosterType = getString(data, "boosterType");
+            if ("FREEZE".equals(boosterType)) {
+                broadcastToRoom(roomCode, MessageType.EFFECT_RECEIVED, Map.of(
+                    "effect", "FREEZE",
+                    "duration", 3000,
+                    "fromPlayer", playerId
+                ), session.getId());
             }
         }
     }
@@ -287,6 +326,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private void sendError(WebSocketSession session, String error) {
         sendMessage(session, MessageType.ERROR, Map.of("error", error));
     }
+
+    private void sendInvalidAction(WebSocketSession session, String reason) {
+        sendMessage(session, MessageType.INVALID_ACTION, Map.of("reason", reason));
+    }
     
     private void broadcastToRoom(String roomCode, MessageType type, Object data) {
         broadcastToRoom(roomCode, type, data, null);
@@ -297,13 +340,48 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (room != null) {
             room.getPlayers().values().forEach(player -> {
                 String sessionId = player.getSessionId();
-                if (!sessionId.equals(excludeSessionId)) {
-                    WebSocketSession session = sessions.get(sessionId);
-                    if (session != null && session.isOpen()) {
-                        sendMessage(session, type, data);
-                    }
+                if (sessionId == null) return;
+                if (excludeSessionId != null && excludeSessionId.equals(sessionId)) return;
+
+                WebSocketSession session = sessions.get(sessionId);
+                if (session != null && session.isOpen()) {
+                    sendMessage(session, type, data);
                 }
             });
         }
+    }
+
+    private String getString(Map<?, ?> map, String key) {
+        if (map == null) return null;
+        Object val = map.get(key);
+        return val != null ? String.valueOf(val) : null;
+    }
+
+    private boolean getBoolean(Map<?, ?> map, String key) {
+        if (map == null) return false;
+        Object val = map.get(key);
+        if (val instanceof Boolean) return (Boolean) val;
+        if (val instanceof Number) return ((Number) val).intValue() != 0;
+        if (val != null) return Boolean.parseBoolean(String.valueOf(val));
+        return false;
+    }
+
+    private String resolvePlayerId(WebSocketSession session, GameMessage message) {
+        String pid = sessionToPlayer.get(session.getId());
+        if (pid == null) pid = message != null ? message.getPlayerId() : null;
+        return pid;
+    }
+
+    private String resolveRoomCode(WebSocketSession session, GameMessage message, String playerId) {
+        String rc = null;
+        if (playerId != null) rc = playerToRoom.get(playerId);
+        if (rc == null && message != null) rc = message.getRoomCode();
+        return rc;
+    }
+
+    private void ensureSessionRegistered(WebSocketSession session, String playerId, String roomCode) {
+        if (playerId == null || roomCode == null) return;
+        sessionToPlayer.putIfAbsent(session.getId(), playerId);
+        playerToRoom.putIfAbsent(playerId, roomCode);
     }
 }
