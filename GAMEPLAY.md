@@ -1,83 +1,118 @@
-# GAMEPLAY.md
+WorldBrain2 — GAMEPLAY.md
 
-# Crossword Duel — Gameplay Design
+Đề tài môn Lập Trình Mạng (Java): game kéo‑thả/chọn ký tự trong grid để tạo từ có nghĩa, chơi nhiều người như Quizizz. Có phòng, chủ đề, điểm, bảng xếp hạng theo thời gian thực, booster/power‑ups.
 
-## 1. Mục tiêu
-Người chơi điền các từ vào bảng ô chữ theo đúng yêu cầu từ các chữ cái có sẵn. Tất cả các từ phải nằm trong từ điển mà Server cung cấp. Người chơi nào điền được nhiều ô đúng hơn trong thời gian giới hạn sẽ chiến thắng.
+1) Mục tiêu & Tổng quan
 
----
+Thể loại: Word‑puzzle realtime (grid chữ cái dạng shape bất kỳ, tạo từ đúng bằng cách điền hết ô).
 
-## 2. Luật chơi
-- Server khởi tạo **bảng ô chữ** với các ô:
-  - Ô trống: người chơi có thể điền.
-  - Ô khoá: chứa sẵn ký tự, không thể thay đổi.
-  - Ô chặn: không sử dụng.
-- Người chơi nhập ký tự vào ô trống. Client gửi lên Server để kiểm tra hợp lệ:
-  - Nếu ký tự hợp lệ (nằm trong từ điển và khớp với các giao cắt) → ô được xác nhận.
-  - Nếu không hợp lệ → từ chối, ô vẫn trống.
-- Mỗi ô đúng được xác nhận sẽ cộng điểm cho người chơi.
-- Nếu hoàn tất một từ, người chơi nhận thêm điểm thưởng.
-- Nếu 2 người cùng điền 1 ô, Server xác định người nào hợp lệ trước sẽ thắng ô đó.
+Phong cách: giống Quizizz: mỗi câu hỏi là một level, tất cả người chơi trong phòng chơi đồng bộ, tính điểm theo tốc độ & độ chính xác, bảng xếp hạng live, booster hỗ trợ hoặc cản đối thủ.
 
----
+Vai trò:
 
-## 3. Cách tính điểm
-- +1 điểm cho mỗi ô ký tự đúng.
-- +bonus bằng độ dài từ nếu hoàn tất cả một từ.
-- Điểm hiển thị realtime cho cả mình và đối thủ:
-  - **My Correct Cells: X**
-  - **Opponent Correct Cells: Y**
+Admin/Host: tạo phòng, chọn chủ đề & bộ câu hỏi, bấm Start.
 
----
+Player: join bằng room code, nối chữ trong grid → gửi → được chấm, đua top.
 
-## 4. Thời gian
-- Thời lượng trận mặc định: **180 giây**.
-- Có đồng hồ đếm ngược hiển thị cho cả hai người.
-- Trò chơi kết thúc khi:
-  - Hết thời gian, hoặc
-  - Tất cả ô có thể điền đã được lấp đầy.
+2) Luồng chơi (game flow)
 
----
+Lobby
 
-## 5. Điều kiện thắng
-- Người có điểm số cao hơn khi hết thời gian thắng.
-- Nếu bằng điểm:
-  1. Người hoàn tất nhiều từ hơn thắng.
-  2. Nếu vẫn hoà → Server chọn ngẫu nhiên.
+Admin tạo phòng → nhận RoomCode (6 ký tự). Chọn Topic, thời lượng mỗi level (30s mặc định), số level (10 mặc định).
 
----
+Người chơi nhập RoomCode → join → thấy danh sách player + trạng thái Ready.
 
-## 6. Giao diện & Hiển thị
-- Bảng ô chữ hiển thị:
-  - Trạng thái các ô: trống / pending / đúng / sai.
-  - Highlight ô hoặc từ đang chọn.
-- Luôn hiển thị:
-  - Điểm số của mình.
-  - Điểm số của đối thủ.
-  - Đồng hồ đếm ngược.
-- Phản hồi lỗi rõ ràng nếu nhập sai.
+Bắt đầu
 
----
+Khi Admin Start, server gửi START kèm serverStartTime. Mọi client hiển thị Level 1 đồng bộ.
 
-## 7. Luồng chơi
-1. Người chơi vào phòng → Server gửi bảng và từ điển.
-2. Cả hai bắt đầu điền chữ khi đồng hồ chạy.
-3. Client gửi ký tự → Server xác nhận → Cập nhật cho cả hai.
-4. Điểm số cập nhật realtime.
-5. Khi hết giờ hoặc bảng hoàn tất → Server gửi kết quả cuối cùng.
+Mỗi Level = 1 Grid Puzzle
 
----
+Xuất hiện Grid chữ cái (ma trận R×C, shape bất kỳ trong ma trận).
 
-## 8. Edge Cases
-- Nếu mất kết nối ngắn hạn, người chơi có thể reconnect và nhận lại trạng thái bảng.
-- Nếu hai người cùng nhập 1 ô: chỉ người gửi hợp lệ trước được tính.
-- Nếu hết giờ trong lúc ô đang chờ xác nhận → ô đó không tính điểm.
+Người chơi chọn ký tự theo 2 cách:
 
----
+Kéo‑thả/đi chuỗi qua các ô liền kề 8 hướng.
 
-## 9. Tuỳ chọn mở rộng
-- Chế độ chơi Solo luyện tập.
-- Power-up: gợi ý 1 ô, highlight slot khả dĩ.
-- Bảng xếp hạng toàn cầu.
+Click chọn lần lượt các ô.
 
----
+Yêu cầu hoàn thành: phải dùng toàn bộ ký tự trong shape theo một trong hai kiểu:
+
+Ghép thành 1 từ đúng.
+
+Hoặc tách thành 2 từ đúng (2 path không trùng, dùng hết shape).
+
+Sau khi chọn → bấm Send để gửi.
+
+Server chấm đúng/sai; cuối mỗi level hiển thị ai đúng/sai + leaderboard cập nhật live.
+
+Kết thúc trận
+
+Sau level cuối: hiện Final Leaderboard, Top 3 huy chương, thống kê (độ chính xác, tốc độ trung bình, streak, booster dùng).
+
+Admin có thể Rematch hoặc Close Room.
+
+3) Cơ chế câu hỏi & dạng bài
+
+Grid mode (chính thức):
+
+Server gửi ma trận R×C + gridMask/shape (ô dùng được =1, bỏ qua=0).
+
+Người chơi nối path trong shape, không dùng lại ô, bắt buộc dùng hết các ô.
+
+Kết quả hợp lệ: 1 từ hoặc 2 từ (tổng ký tự = số ô trong shape).
+
+Dạng phụ (tùy chọn):
+
+Fill the Blank with Words: kéo từ cho sẵn.
+
+Multi‑word Phrase: sắp xếp cụm từ.
+
+Quy tắc:
+
+Từ phải tồn tại trong từ điển chủ đề/chung.
+
+Độ dài tối thiểu: 3 ký tự.
+
+Cho phép ký tự lặp nếu có nhiều ô cùng chữ.
+
+4) Điểm số & Xếp hạng
+4.1 Công thức điểm
+
+Base: 1000/câu đúng.
+
+Speed factor: phụ thuộc % thời gian còn lại (0.5–1.0).
+
+Streak multiplier: +0.1 mỗi streak, tối đa 1.5.
+
+Booster multiplier: ví dụ DoubleUp = x2.
+
+Penalty: −150 mỗi lần sai (tối đa 2 lần).
+
+4.2 Streak & tie‑break
+
+Streak +1 khi đúng liên tiếp, reset khi sai.
+
+Tie‑break theo tổng thời gian thấp + streak cao.
+
+4.3 Bảng xếp hạng
+
+Realtime Leaderboard hiển thị:
+
+Ai đúng (✓) / sai (✗) ở level vừa xong.
+
+Điểm cộng/trừ + tổng điểm.
+
+Thứ hạng thay đổi live.
+
+Các bảng: Trong phòng, Theo chủ đề, Cá nhân (PB).
+
+5) Booster (power‑ups)
+Booster	Tác dụng	Phạm vi	Hạn chế
+DoubleUp	x2 điểm câu hiện tại	Bản thân	1 lần/3 level
+Freeze	Khóa thao tác đối thủ 3s	Tất cả	Shield chặn được
+Reveal	Lật 1 ô đúng	Bản thân	−100 điểm
+Time+5	+5s cho đồng hồ cá nhân	Bản thân	Tối đa 2 lần/câu
+Shield	Miễn nhiễm 1 hiệu ứng	Bản thân	Hết sau khi chặn
+StreakSave	Sai 1 lần không mất streak	Bản thân	1 lần/4 level
+SkipHalf	Bỏ qua câu, nhận 50% điểm base	Bản thân	Không tính streak
