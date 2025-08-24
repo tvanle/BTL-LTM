@@ -37,6 +37,7 @@ public enum MessageType {
     PLAYER_RECONNECTED,
     LEVEL_RESULTS,
     NEXT_LEVEL_STARTING,
+    ROOM_STATE,
     
     // Error Messages
     ERROR,

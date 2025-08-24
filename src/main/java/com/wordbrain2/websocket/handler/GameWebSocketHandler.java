@@ -13,7 +13,10 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -110,6 +113,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     "playerId", playerId,
                     "message", "Player disconnected"
                 ));
+                // Broadcast full room state after a player leaves
+                broadcastRoomState(roomCode);
             }
         }
         
@@ -131,6 +136,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             playerToRoom.put(playerId, roomCode);
             
             sendMessage(session, MessageType.ROOM_CREATED, result);
+            // Send initial room state to the creator
+            broadcastRoomState(roomCode);
         } else {
             sendError(session, "Failed to create room");
         }
@@ -156,6 +163,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 "playerId", playerId,
                 "playerName", playerName
             ), session.getId());
+            // Broadcast full room state to everyone
+            broadcastRoomState(roomCode);
         } else {
             sendError(session, "Failed to join room");
         }
@@ -180,6 +189,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         broadcastToRoom(roomCode, MessageType.PLAYER_LEFT, Map.of(
             "playerId", playerId
         ));
+        // Broadcast full room state after leave
+        broadcastRoomState(roomCode);
     }
     
     private void handlePlayerReady(WebSocketSession session, GameMessage message) {
@@ -204,6 +215,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             "playerId", playerId,
             "ready", ready
         ));
+        // Broadcast full room state after ready toggle
+        broadcastRoomState(roomCode);
     }
     
     private void handleStartGame(WebSocketSession session, GameMessage message) {
@@ -227,6 +240,13 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
         if (!playerId.equals(room.getHostId())) {
             sendInvalidAction(session, "Chỉ chủ phòng mới có thể bắt đầu trò chơi.");
+            return;
+        }
+        // Enforce all players ready before starting
+        boolean allReady = room.getPlayers().keySet().stream()
+            .allMatch(pid -> Boolean.TRUE.equals(room.getPlayerReady().get(pid)));
+        if (!allReady) {
+            sendInvalidAction(session, "Tất cả người chơi phải sẵn sàng để bắt đầu.");
             return;
         }
         
@@ -360,6 +380,32 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 }
             });
         }
+    }
+
+    // Build and broadcast the full ROOM_STATE to all clients in the room
+    private void broadcastRoomState(String roomCode) {
+        var room = roomService.getRoom(roomCode);
+        if (room == null) return;
+
+        List<Map<String, Object>> players = new ArrayList<>();
+        room.getPlayers().values().forEach(p -> {
+            boolean ready = Boolean.TRUE.equals(room.getPlayerReady().get(p.getId()));
+            Map<String, Object> pInfo = new HashMap<>();
+            pInfo.put("id", p.getId());
+            pInfo.put("name", p.getName());
+            pInfo.put("ready", ready);
+            pInfo.put("isHost", p.getId().equals(room.getHostId()));
+            players.add(pInfo);
+        });
+
+        Map<String, Object> state = new HashMap<>();
+        state.put("roomCode", room.getRoomCode());
+        state.put("hostId", room.getHostId());
+        state.put("players", players);
+        state.put("playersCount", room.getPlayerCount());
+        state.put("maxPlayers", room.getMaxPlayers());
+        
+        broadcastToRoom(roomCode, MessageType.ROOM_STATE, state);
     }
 
     private String getString(Map<?, ?> map, String key) {

@@ -261,7 +261,7 @@ class App {
     
     toggleReady() {
         const btn = document.getElementById('ready-btn');
-        const isReady = btn.textContent === 'Ready';
+        const isReady = btn && btn.textContent === 'Ready';
         
         window.websocketClient.send({
             type: 'PLAYER_READY',
@@ -270,8 +270,10 @@ class App {
             }
         });
         
-        btn.textContent = isReady ? 'Not Ready' : 'Ready';
-        btn.classList.toggle('btn-success', !isReady);
+        if (btn) {
+            btn.textContent = isReady ? 'Not Ready' : 'Ready';
+            btn.classList.toggle('btn-success', !isReady);
+        }
     }
     
     startGame() {
@@ -303,7 +305,7 @@ class App {
     }
     
     submitWord() {
-        if (window.gridRenderer && window.gridRenderer.selectedPath.length > 0) {
+        if (window.gridRenderer && window.gridRenderer.selectedPath && window.gridRenderer.selectedPath.length > 0) {
             const word = window.gridRenderer.getSelectedWord();
             const path = window.gridRenderer.selectedPath;
             
@@ -352,9 +354,11 @@ class App {
             if (player.ready) {
                 playerItem.classList.add('ready');
             }
+            const isHost = this.roomInfo && this.roomInfo.hostId === player.id;
+            const isSelf = this.playerInfo && this.playerInfo.id === player.id;
             
             playerItem.innerHTML = `
-                <span>${player.name}</span>
+                <span>${player.name}${isHost ? ' (Host)' : ''}${isSelf ? ' (You)' : ''}</span>
                 <span>${player.ready ? '✓ Ready' : 'Not Ready'}</span>
             `;
             
@@ -363,6 +367,16 @@ class App {
         
         const countEl = document.getElementById('player-count');
         if (countEl) countEl.textContent = players.length;
+        const playersLabel = document.getElementById('players-label');
+        if (playersLabel && this.roomInfo) {
+            const max = this.roomInfo.maxPlayers || '';
+            playersLabel.textContent = `Players: ${players.length}${max ? '/' + max : ''}`;
+        }
+        // Toggle Start button based on updated host info
+        const startBtn = document.getElementById('start-game-btn');
+        if (startBtn && this.playerInfo && this.roomInfo) {
+            startBtn.style.display = this.playerInfo.id === this.roomInfo.hostId ? 'inline-block' : 'none';
+        }
     }
     
     startGameCountdown(countdown) {
@@ -394,7 +408,9 @@ class App {
                 overlay.textContent = count;
             } else {
                 clearInterval(interval);
-                document.body.removeChild(overlay);
+                if (overlay.parentNode) {
+                    document.body.removeChild(overlay);
+                }
             }
         }, 1000);
     }
@@ -417,8 +433,10 @@ class App {
         window.gridRenderer.setGrid(levelData.grid);
         
         // Update UI
-        document.getElementById('current-level').textContent = levelData.level;
-        document.getElementById('total-levels').textContent = this.roomInfo.levelCount || 10;
+        const currentLevelEl = document.getElementById('current-level');
+        if (currentLevelEl) currentLevelEl.textContent = levelData.level;
+        const totalLevelsEl = document.getElementById('total-levels');
+        if (totalLevelsEl) totalLevelsEl.textContent = this.roomInfo.levelCount || 10;
         
         // Start timer
         this.startTimer(levelData.duration);
@@ -429,14 +447,16 @@ class App {
         const timerDisplay = document.getElementById('timer-display');
         
         const updateTimer = () => {
-            timerDisplay.textContent = timeRemaining;
+            if (timerDisplay) timerDisplay.textContent = timeRemaining;
             
-            if (timeRemaining <= 5) {
-                timerDisplay.style.color = '#dc3545';
-            } else if (timeRemaining <= 10) {
-                timerDisplay.style.color = '#ffc107';
-            } else {
-                timerDisplay.style.color = '#28a745';
+            if (timerDisplay) {
+                if (timeRemaining <= 5) {
+                    timerDisplay.style.color = '#dc3545';
+                } else if (timeRemaining <= 10) {
+                    timerDisplay.style.color = '#ffc107';
+                } else {
+                    timerDisplay.style.color = '#28a745';
+                }
             }
             
             if (timeRemaining > 0) {
@@ -450,13 +470,14 @@ class App {
     
     updateLeaderboard(leaderboardData) {
         const leaderboardList = document.getElementById('leaderboard-list');
+        if (!leaderboardList) return;
         leaderboardList.innerHTML = '';
         
         leaderboardData.leaderboard.forEach(entry => {
             const item = document.createElement('div');
             item.className = 'leaderboard-item';
             
-            if (entry.playerId === this.playerInfo.id) {
+            if (entry.playerId === (this.playerInfo && this.playerInfo.id)) {
                 item.classList.add('current-player');
             }
             
@@ -469,9 +490,10 @@ class App {
         });
         
         // Update player score
-        const playerEntry = leaderboardData.leaderboard.find(e => e.playerId === this.playerInfo.id);
-        if (playerEntry) {
-            document.getElementById('player-score').textContent = playerEntry.score;
+        const playerEntry = leaderboardData.leaderboard.find(e => e.playerId === (this.playerInfo && this.playerInfo.id));
+        const scoreEl = document.getElementById('player-score');
+        if (playerEntry && scoreEl) {
+            scoreEl.textContent = playerEntry.score;
         }
     }
     
@@ -479,6 +501,7 @@ class App {
         this.showScreen('results');
         
         const finalLeaderboard = document.getElementById('final-leaderboard');
+        if (!finalLeaderboard) return;
         finalLeaderboard.innerHTML = '<h3>Final Rankings</h3>';
         
         resultsData.leaderboard.forEach((entry, index) => {

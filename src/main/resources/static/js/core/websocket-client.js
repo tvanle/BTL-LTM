@@ -86,6 +86,10 @@ class WebSocketClient {
                     this.handlePlayerReady(message.data);
                     break;
                     
+                case 'ROOM_STATE':
+                    this.handleRoomState(message.data);
+                    break;
+                    
                 case 'GAME_STARTING':
                     this.handleGameStarting(message.data);
                     break;
@@ -160,6 +164,35 @@ class WebSocketClient {
         // Refresh lobby info for all clients (counts may be shown in combined label)
         if (window.app && window.app.refreshRoomInfo) {
             window.app.refreshRoomInfo();
+        }
+    }
+
+    handleRoomState(data) {
+        console.log('Room state:', data);
+        if (!window.app) return;
+        // Update host in app state for Start button toggling
+        if (!window.app.roomInfo) window.app.roomInfo = {};
+        window.app.roomInfo.hostId = data.hostId;
+        window.app.roomInfo.maxPlayers = data.maxPlayers;
+        // Update player count/label
+        const playersCountEl = document.getElementById('player-count');
+        const playersMaxEl = document.getElementById('player-max');
+        if (playersCountEl) playersCountEl.textContent = data.playersCount ?? (data.players ? data.players.length : '');
+        if (playersMaxEl) playersMaxEl.textContent = data.maxPlayers;
+        const playersLabel = document.getElementById('players-label');
+        if (playersLabel) playersLabel.textContent = `Players: ${(data.playersCount ?? data.players.length)}/${data.maxPlayers}`;
+        // Toggle Start button visibility based on ownership
+        const startBtn = document.getElementById('start-game-btn');
+        if (startBtn && window.app.playerInfo) {
+            startBtn.style.display = window.app.playerInfo.id === data.hostId ? 'inline-block' : 'none';
+        }
+        // Update player list UI
+        if (Array.isArray(data.players) && window.app.updatePlayerList) {
+            window.app.updatePlayerList(data.players.map(p => ({
+                id: p.id,
+                name: p.name,
+                ready: !!p.ready
+            })));
         }
     }
     
