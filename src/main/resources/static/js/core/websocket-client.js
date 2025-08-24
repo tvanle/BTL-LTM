@@ -141,18 +141,26 @@ class WebSocketClient {
     
     handlePlayerJoined(data) {
         console.log('Player joined:', data);
-        // Update player list in lobby
-        // This would be handled by fetching updated room info
+        // Refresh lobby info for all clients to update counts and possibly host changes
+        if (window.app && window.app.refreshRoomInfo) {
+            window.app.refreshRoomInfo();
+        }
     }
     
     handlePlayerLeft(data) {
         console.log('Player left:', data);
-        // Update player list in lobby
+        // Refresh lobby info for all clients to update counts and possibly host changes
+        if (window.app && window.app.refreshRoomInfo) {
+            window.app.refreshRoomInfo();
+        }
     }
     
     handlePlayerReady(data) {
         console.log('Player ready status:', data);
-        // Update player ready status in UI
+        // Refresh lobby info for all clients (counts may be shown in combined label)
+        if (window.app && window.app.refreshRoomInfo) {
+            window.app.refreshRoomInfo();
+        }
     }
     
     handleGameStarting(data) {

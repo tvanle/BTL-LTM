@@ -131,6 +131,9 @@ class App {
                 
                 // Show lobby
                 this.showLobby();
+
+                // Refresh room info for counts/maxPlayers
+                this.refreshRoomInfo();
             } else {
                 alert('Failed to create room');
             }
@@ -190,6 +193,9 @@ class App {
                 
                 // Show success message
                 this.showNotification(`Successfully joined room ${roomCode}`, 'success');
+
+                // Refresh room info for counts/maxPlayers
+                this.refreshRoomInfo();
             } else {
                 const errorData = await response.json();
                 const errorMessage = errorData.error || 'Failed to join room';
@@ -210,11 +216,46 @@ class App {
     
     showLobby() {
         this.showScreen('lobby');
-        document.getElementById('lobby-room-code').textContent = this.roomInfo.roomCode;
-        document.getElementById('lobby-topic').textContent = this.roomInfo.topic;
+        const codeEl = document.getElementById('lobby-room-code');
+        if (codeEl) codeEl.textContent = this.roomInfo.roomCode;
+        const topicEl = document.getElementById('lobby-topic');
+        if (topicEl) topicEl.textContent = this.roomInfo.topic;
         
-        if (this.playerInfo.isHost) {
-            document.getElementById('start-game-btn').style.display = 'inline-block';
+        // Hide Start by default; refreshRoomInfo will toggle based on hostId
+        const startBtn = document.getElementById('start-game-btn');
+        if (startBtn) {
+            startBtn.style.display = 'none';
+        }
+
+        // Refresh players count/max and ownership
+        this.refreshRoomInfo();
+    }
+    
+    async refreshRoomInfo() {
+        if (!this.roomInfo || !this.roomInfo.roomCode) return;
+        try {
+            const resp = await fetch(`/api/rooms/${this.roomInfo.roomCode}`);
+            if (!resp.ok) return;
+            const info = await resp.json();
+            // Persist details
+            this.roomInfo.maxPlayers = info.maxPlayers;
+            this.roomInfo.hostId = info.hostId;
+            const playersCountEl = document.getElementById('player-count');
+            const playersMaxEl = document.getElementById('player-max');
+            if (playersCountEl) playersCountEl.textContent = info.players;
+            if (playersMaxEl) playersMaxEl.textContent = info.maxPlayers;
+            // Optional combined label
+            const playersLabel = document.getElementById('players-label');
+            if (playersLabel) playersLabel.textContent = `Players: ${info.players}/${info.maxPlayers}`;
+            
+            // Toggle Start button visibility based on current host
+            const startBtn = document.getElementById('start-game-btn');
+            if (startBtn) {
+                const isOwner = this.playerInfo && info.hostId && this.playerInfo.id === info.hostId;
+                startBtn.style.display = isOwner ? 'inline-block' : 'none';
+            }
+        } catch (e) {
+            console.warn('Failed to refresh room info', e);
         }
     }
     
@@ -234,7 +275,15 @@ class App {
     }
     
     startGame() {
-        if (this.playerInfo.isHost) {
+        if (this.playerInfo && this.playerInfo.id && this.roomInfo && this.roomInfo.hostId) {
+            const isOwner = this.playerInfo.id === this.roomInfo.hostId;
+            if (!isOwner) {
+                this.showNotification('Only the room owner can start the game.', 'warning');
+                return;
+            }
+        }
+        
+        if (window.websocketClient) {
             window.websocketClient.send({
                 type: 'START_GAME',
                 data: {}
@@ -294,6 +343,7 @@ class App {
     
     updatePlayerList(players) {
         const playerList = document.getElementById('player-list');
+        if (!playerList) return;
         playerList.innerHTML = '';
         
         players.forEach(player => {
@@ -311,7 +361,8 @@ class App {
             playerList.appendChild(playerItem);
         });
         
-        document.getElementById('player-count').textContent = players.length;
+        const countEl = document.getElementById('player-count');
+        if (countEl) countEl.textContent = players.length;
     }
     
     startGameCountdown(countdown) {

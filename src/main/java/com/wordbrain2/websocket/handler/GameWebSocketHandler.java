@@ -219,6 +219,17 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
         ensureSessionRegistered(session, playerId, roomCode);
         
+        // Enforce host-only start
+        var room = roomService.getRoom(roomCode);
+        if (room == null) {
+            sendInvalidAction(session, "Phòng không tồn tại.");
+            return;
+        }
+        if (!playerId.equals(room.getHostId())) {
+            sendInvalidAction(session, "Chỉ chủ phòng mới có thể bắt đầu trò chơi.");
+            return;
+        }
+        
         var gameState = gameEngine.startGame(roomCode);
         
         if (gameState != null) {

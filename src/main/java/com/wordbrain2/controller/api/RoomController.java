@@ -77,7 +77,9 @@ public class RoomController {
                 "topic", room.getTopic(),
                 "players", room.getPlayerCount(),
                 "maxPlayers", room.getMaxPlayers(),
-                "status", room.getStatus().toString()
+                "status", room.getStatus().toString(),
+                // expose current host to allow clients to toggle Start button correctly
+                "hostId", room.getHostId()
             ));
         }
         
