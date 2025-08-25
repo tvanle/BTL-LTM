@@ -10,14 +10,20 @@ public class Cell {
     private boolean active;
     private boolean selected;
     private String ownerId;
+    private String value;
+    private boolean empty;
     
-    public Cell(int row, int col) {
-        this.row = row;
-        this.col = col;
+    public Cell() {
         this.character = ' ';
         this.active = true;
         this.selected = false;
-        this.ownerId = null;
+        this.empty = true;
+    }
+    
+    public Cell(int row, int col) {
+        this();
+        this.row = row;
+        this.col = col;
     }
     
     public Cell(int row, int col, char character) {

@@ -18,6 +18,7 @@ public class Player {
     private int maxStreak;
     private int correctWords;
     private int boostersUsed;
+    private boolean isHost;
     private LocalDateTime joinedAt;
     private LocalDateTime lastActivityAt;
     

@@ -5,7 +5,6 @@ import com.wordbrain2.model.enums.MessageType;
 import com.wordbrain2.service.core.GameEngine;
 import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.websocket.message.BaseMessage;
-import com.wordbrain2.websocket.message.GameMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -44,11 +43,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         
         // Send connection success message
         BaseMessage welcomeMessage = new BaseMessage();
-        welcomeMessage.setType(MessageType.PLAYER_JOINED);
-        welcomeMessage.setData(Map.of(
-            "sessionId", session.getId(),
-            "message", "Connected to game server"
-        ));
+        welcomeMessage.setType(MessageType.PLAYER_JOINED.name());
+        Map<String, Object> welcomeData = new HashMap<>();
+        welcomeData.put("sessionId", session.getId());
+        welcomeData.put("message", "Connected to game server");
+        welcomeMessage.setData(welcomeData);
         
         session.sendMessage(new TextMessage(gson.toJson(welcomeMessage)));
     }
@@ -59,34 +58,34 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             String payload = message.getPayload();
             log.debug("Received message: {}", payload);
             
-            GameMessage gameMessage = gson.fromJson(payload, GameMessage.class);
+            BaseMessage gameMessage = gson.fromJson(payload, BaseMessage.class);
             
             switch (gameMessage.getType()) {
-                case CREATE_ROOM:
+                case "CREATE_ROOM":
                     handleCreateRoom(session, gameMessage);
                     break;
                     
-                case JOIN_ROOM:
+                case "JOIN_ROOM":
                     handleJoinRoom(session, gameMessage);
                     break;
                     
-                case LEAVE_ROOM:
+                case "LEAVE_ROOM":
                     handleLeaveRoom(session, gameMessage);
                     break;
                     
-                case PLAYER_READY:
+                case "PLAYER_READY":
                     handlePlayerReady(session, gameMessage);
                     break;
                     
-                case START_GAME:
+                case "START_GAME":
                     handleStartGame(session, gameMessage);
                     break;
                     
-                case SUBMIT_WORD:
+                case "SUBMIT_WORD":
                     handleSubmitWord(session, gameMessage);
                     break;
                     
-                case USE_BOOSTER:
+                case "USE_BOOSTER":
                     handleUseBooster(session, gameMessage);
                     break;
                     
@@ -121,7 +120,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         sessions.remove(session.getId());
     }
     
-    private void handleCreateRoom(WebSocketSession session, GameMessage message) {
+    private void handleCreateRoom(WebSocketSession session, BaseMessage message) {
         Map<?, ?> data = (Map<?, ?>) message.getData();
         String playerName = getString(data, "playerName");
         String topic = getString(data, "topic");
@@ -143,7 +142,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
     }
     
-    private void handleJoinRoom(WebSocketSession session, GameMessage message) {
+    private void handleJoinRoom(WebSocketSession session, BaseMessage message) {
         Map<?, ?> data = (Map<?, ?>) message.getData();
         String roomCode = getString(data, "roomCode");
         String playerName = getString(data, "playerName");
@@ -170,7 +169,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
     }
     
-    private void handleLeaveRoom(WebSocketSession session, GameMessage message) {
+    private void handleLeaveRoom(WebSocketSession session, BaseMessage message) {
         String playerId = resolvePlayerId(session, message);
         if (playerId == null) {
             sendInvalidAction(session, "Bạn chưa tham gia phòng.");
@@ -193,7 +192,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         broadcastRoomState(roomCode);
     }
     
-    private void handlePlayerReady(WebSocketSession session, GameMessage message) {
+    private void handlePlayerReady(WebSocketSession session, BaseMessage message) {
         String playerId = resolvePlayerId(session, message);
         if (playerId == null) {
             sendInvalidAction(session, "Bạn chưa tham gia phòng.");
@@ -219,7 +218,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         broadcastRoomState(roomCode);
     }
     
-    private void handleStartGame(WebSocketSession session, GameMessage message) {
+    private void handleStartGame(WebSocketSession session, BaseMessage message) {
         String playerId = resolvePlayerId(session, message);
         if (playerId == null) {
             sendInvalidAction(session, "Bạn chưa tham gia phòng.");
@@ -243,7 +242,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         // Enforce all players ready before starting
-        boolean allReady = room.getPlayers().keySet().stream()
+        boolean allReady = room.getPlayerReady().keySet().stream()
             .allMatch(pid -> Boolean.TRUE.equals(room.getPlayerReady().get(pid)));
         if (!allReady) {
             sendInvalidAction(session, "Tất cả người chơi phải sẵn sàng để bắt đầu.");
@@ -275,7 +274,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
     }
     
-    private void handleSubmitWord(WebSocketSession session, GameMessage message) {
+    private void handleSubmitWord(WebSocketSession session, BaseMessage message) {
         String playerId = resolvePlayerId(session, message);
         if (playerId == null) {
             sendInvalidAction(session, "Bạn chưa tham gia phòng.");
@@ -310,7 +309,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
     }
     
-    private void handleUseBooster(WebSocketSession session, GameMessage message) {
+    private void handleUseBooster(WebSocketSession session, BaseMessage message) {
         String playerId = resolvePlayerId(session, message);
         if (playerId == null) {
             sendInvalidAction(session, "Bạn chưa tham gia phòng.");
@@ -343,10 +342,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     
     private void sendMessage(WebSocketSession session, MessageType type, Object data) {
         try {
-            BaseMessage message = new BaseMessage();
-            message.setType(type);
-            message.setData(data);
-            message.setTimestamp(System.currentTimeMillis());
+            BaseMessage message = new BaseMessage(type, convertToMap(data));
             
             session.sendMessage(new TextMessage(gson.toJson(message)));
         } catch (Exception e) {
@@ -369,7 +365,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private void broadcastToRoom(String roomCode, MessageType type, Object data, String excludeSessionId) {
         var room = roomService.getRoom(roomCode);
         if (room != null) {
-            room.getPlayers().values().forEach(player -> {
+            room.getPlayers().forEach(player -> {
                 String sessionId = player.getSessionId();
                 if (sessionId == null) return;
                 if (excludeSessionId != null && excludeSessionId.equals(sessionId)) return;
@@ -388,7 +384,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (room == null) return;
 
         List<Map<String, Object>> players = new ArrayList<>();
-        room.getPlayers().values().forEach(p -> {
+        room.getPlayers().forEach(p -> {
             boolean ready = Boolean.TRUE.equals(room.getPlayerReady().get(p.getId()));
             Map<String, Object> pInfo = new HashMap<>();
             pInfo.put("id", p.getId());
@@ -423,16 +419,20 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         return false;
     }
 
-    private String resolvePlayerId(WebSocketSession session, GameMessage message) {
+    private String resolvePlayerId(WebSocketSession session, BaseMessage message) {
         String pid = sessionToPlayer.get(session.getId());
-        if (pid == null) pid = message != null ? message.getPlayerId() : null;
+        if (pid == null && message != null && message.getData() != null) {
+            pid = (String) message.getData().get("playerId");
+        }
         return pid;
     }
 
-    private String resolveRoomCode(WebSocketSession session, GameMessage message, String playerId) {
+    private String resolveRoomCode(WebSocketSession session, BaseMessage message, String playerId) {
         String rc = null;
         if (playerId != null) rc = playerToRoom.get(playerId);
-        if (rc == null && message != null) rc = message.getRoomCode();
+        if (rc == null && message != null && message.getData() != null) {
+            rc = (String) message.getData().get("roomCode");
+        }
         return rc;
     }
 
@@ -440,5 +440,15 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (playerId == null || roomCode == null) return;
         sessionToPlayer.putIfAbsent(session.getId(), playerId);
         playerToRoom.putIfAbsent(playerId, roomCode);
+    }
+    
+    private Map<String, Object> convertToMap(Object data) {
+        if (data instanceof Map) {
+            return (Map<String, Object>) data;
+        } else {
+            Map<String, Object> wrapper = new HashMap<>();
+            wrapper.put("data", data);
+            return wrapper;
+        }
     }
 }

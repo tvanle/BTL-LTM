@@ -4,10 +4,15 @@ import com.wordbrain2.config.GameConfig;
 import com.wordbrain2.model.entity.Player;
 import com.wordbrain2.model.entity.Room;
 import com.wordbrain2.model.enums.RoomStatus;
+import com.wordbrain2.model.enums.BoosterType;
+import com.wordbrain2.model.dto.request.CreateRoomRequest;
+import com.wordbrain2.model.dto.response.RoomResponse;
+import com.wordbrain2.model.entity.GameSession;
+import com.wordbrain2.util.RandomUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -103,5 +108,113 @@ public class RoomService {
     
     public Map<String, Room> getAllRooms() {
         return new ConcurrentHashMap<>(rooms);
+    }
+    
+    // Additional methods needed by other classes
+    public RoomResponse createRoom(CreateRoomRequest request, String hostId) {
+        Room room = new Room(hostId, request.getTopic());
+        room.setRoomCode(generateRoomCode());
+        room.setMaxPlayers(request.getMaxPlayers());
+        room.setLevelCount(request.getLevelCount());
+        room.setLevelDuration(request.getLevelDuration());
+        room.setStatus(RoomStatus.WAITING);
+        if (request.getEnabledBoosters() != null) {
+            room.setAllowedBoosters(request.getEnabledBoosters());
+        }
+        
+        rooms.put(room.getRoomCode(), room);
+        
+        RoomResponse response = new RoomResponse();
+        response.setRoomCode(room.getRoomCode());
+        response.setHostId(hostId);
+        response.setStatus(room.getStatus());
+        response.setSuccess(true);
+        return response;
+    }
+    
+    public void createRoom(Room room) {
+        rooms.put(room.getRoomCode(), room);
+    }
+    
+    public boolean addPlayerToRoom(String roomCode, Player player) {
+        Room room = rooms.get(roomCode);
+        if (room != null && !room.isFull()) {
+            return room.addPlayer(player);
+        }
+        return false;
+    }
+    
+    public void removePlayerFromRoom(String roomCode, String playerId) {
+        Room room = rooms.get(roomCode);
+        if (room != null) {
+            room.removePlayer(playerId);
+        }
+    }
+    
+    public boolean areAllPlayersReady(String roomCode) {
+        Room room = rooms.get(roomCode);
+        if (room != null) {
+            return room.getPlayerReady().values().stream().allMatch(ready -> ready);
+        }
+        return false;
+    }
+    
+    public RoomResponse getRoomInfo(String roomCode) {
+        Room room = rooms.get(roomCode);
+        if (room != null) {
+            RoomResponse response = new RoomResponse();
+            response.setRoomCode(room.getRoomCode());
+            response.setHostId(room.getHostId());
+            response.setTopic(room.getTopic());
+            response.setMaxPlayers(room.getMaxPlayers());
+            response.setCurrentPlayers(room.getPlayers().size());
+            response.setStatus(room.getStatus());
+            response.setPlayers(room.getPlayers());
+            response.setPlayerReady(room.getPlayerReady());
+            response.setEnabledBoosters(room.getAllowedBoosters());
+            response.setSuccess(true);
+            return response;
+        }
+        return null;
+    }
+    
+    public String generateRoomCode() {
+        return RandomUtils.generateRoomCode(6);
+    }
+    
+    public boolean isRoomInGame(String roomCode) {
+        Room room = rooms.get(roomCode);
+        return room != null && room.getStatus() == RoomStatus.IN_GAME;
+    }
+    
+    public boolean isBoosterEnabled(String roomCode, BoosterType type) {
+        Room room = rooms.get(roomCode);
+        return room != null && room.getAllowedBoosters() != null && 
+               room.getAllowedBoosters().contains(type);
+    }
+    
+    public Map<String, Object> getRoomState(String roomCode) {
+        Room room = rooms.get(roomCode);
+        if (room == null) {
+            return null;
+        }
+        
+        Map<String, Object> state = new HashMap<>();
+        state.put("roomCode", roomCode);
+        state.put("status", room.getStatus());
+        state.put("players", room.getPlayers());
+        state.put("maxPlayers", room.getMaxPlayers());
+        state.put("levelCount", room.getLevelCount());
+        state.put("levelDuration", room.getLevelDuration());
+        state.put("topic", room.getTopic());
+        state.put("hostId", room.getHostId());
+        
+        if (room.getGameSession() != null) {
+            GameSession session = room.getGameSession();
+            state.put("gamePhase", session.getPhase());
+            state.put("currentLevel", session.getCurrentLevelIndex());
+        }
+        
+        return state;
     }
 }

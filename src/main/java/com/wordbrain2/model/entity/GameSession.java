@@ -76,4 +76,12 @@ public class GameSession {
     public int getPlayerScore(String playerId) {
         return playerScores.getOrDefault(playerId, 0);
     }
+    
+    public String getId() {
+        return sessionId;
+    }
+    
+    public boolean isActive() {
+        return phase == GamePhase.PLAYING || phase == GamePhase.LEVEL_END;
+    }
 }

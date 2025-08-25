@@ -103,4 +103,14 @@ public class Room {
     public int getPlayerCount() {
         return players.size();
     }
+    
+    public boolean isPrivate() {
+        // Room is private if it has a password or is not publicly listed
+        // For now, we'll consider all rooms as public
+        return false;
+    }
+    
+    public List<Player> getPlayers() {
+        return new ArrayList<>(players.values());
+    }
 }

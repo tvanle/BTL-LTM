@@ -2,6 +2,7 @@ package com.wordbrain2.service.core;
 
 import com.wordbrain2.config.GameConfig;
 import com.wordbrain2.model.entity.GameSession;
+import com.wordbrain2.model.entity.Player;
 import com.wordbrain2.model.entity.Room;
 import com.wordbrain2.model.enums.GamePhase;
 import com.wordbrain2.model.enums.SubmissionResult;
@@ -53,18 +54,18 @@ public class GameEngine {
         session.startGame();
         
         // Initialize player scores
-        room.getPlayers().values().forEach(player -> {
+        room.getPlayers().forEach(player -> {
             session.updatePlayerScore(player.getId(), 0);
         });
         
         log.info("Game started for room: {}", roomCode);
         
-        return Map.of(
-            "roomCode", roomCode,
-            "status", "STARTED",
-            "levelCount", room.getLevelCount(),
-            "players", room.getPlayers().size()
-        );
+        Map<String, Object> result = new HashMap<>();
+        result.put("roomCode", roomCode);
+        result.put("status", "STARTED");
+        result.put("levelCount", room.getLevelCount());
+        result.put("players", room.getPlayers().size());
+        return result;
     }
     
     public Map<String, Object> startLevel(String roomCode, int levelNumber) {
@@ -95,13 +96,73 @@ public class GameEngine {
         grid.fillWithLetters(words);
         level.setTargetWords(words);
         
-        return Map.of(
-            "level", levelNumber,
-            "grid", convertGridToMap(grid),
-            "duration", level.getDuration(),
-            "serverTime", System.currentTimeMillis(),
-            "targetWords", level.getTargetWordCount()
-        );
+        Map<String, Object> result = new HashMap<>();
+        result.put("level", levelNumber);
+        result.put("grid", convertGridToMap(grid));
+        result.put("duration", level.getDuration());
+        result.put("serverTime", System.currentTimeMillis());
+        result.put("targetWords", level.getTargetWordCount());
+        return result;
+    }
+    
+    // Overloaded method for WebSocket handler
+    public Map<String, Object> submitWord(String roomCode, String playerId, List<Cell> path, String word) {
+        Room room = roomService.getRoom(roomCode);
+        if (room == null || room.getGameSession() == null) {
+            return null;
+        }
+        
+        GameSession session = room.getGameSession();
+        Level level = session.getCurrentLevel();
+        Grid grid = level.getGrid();
+        
+        // Validate the word
+        boolean isValid = wordValidator.validateWord(word, path, grid);
+        boolean inDictionary = dictionaryService.isValidWord(word);
+        
+        Map<String, Object> result = new HashMap<>();
+        
+        if (isValid && inDictionary) {
+            // Calculate score
+            long timeRemaining = calculateTimeRemaining(session);
+            double speedFactor = calculateSpeedFactor(timeRemaining, level.getDuration());
+            int basePoints = gameConfig.getScore().getBasePoints();
+            // Find player in room
+            Player player = room.getPlayers().stream()
+                .filter(p -> p.getId().equals(playerId))
+                .findFirst()
+                .orElse(null);
+            
+            if (player == null) {
+                result.put("result", SubmissionResult.INCORRECT);
+                result.put("reason", "Player not found");
+                return result;
+            }
+            
+            int points = scoreCalculator.calculateScore(basePoints, speedFactor, player);
+            
+            // Update player score
+            player.addScore(points);
+            player.incrementStreak();
+            
+            result.put("result", SubmissionResult.CORRECT);
+            result.put("points", points);
+            result.put("word", word);
+        } else {
+            // Find and update player
+            Player playerToReset = room.getPlayers().stream()
+                .filter(p -> p.getId().equals(playerId))
+                .findFirst()
+                .orElse(null);
+            if (playerToReset != null) {
+                playerToReset.resetStreak();
+            }
+            result.put("result", SubmissionResult.INCORRECT);
+            result.put("word", word);
+            result.put("reason", !inDictionary ? "Not in dictionary" : "Invalid path");
+        }
+        
+        return result;
     }
     
     public Map<String, Object> submitWord(String roomCode, String playerId, Object data) {
@@ -131,28 +192,47 @@ public class GameEngine {
         boolean isValid = wordValidator.validateWord(word, path, grid);
         boolean inDictionary = dictionaryService.isValidWord(word);
         
+        Map<String, Object> result = new HashMap<>();
+        
         if (isValid && inDictionary) {
             // Calculate score
             long timeRemaining = calculateTimeRemaining(session);
             double speedFactor = calculateSpeedFactor(timeRemaining, level.getDuration());
             int basePoints = gameConfig.getScore().getBasePoints();
-            int points = scoreCalculator.calculateScore(basePoints, speedFactor, 
-                                                       room.getPlayers().get(playerId));
+            // Find player in room
+            Player player = room.getPlayers().stream()
+                .filter(p -> p.getId().equals(playerId))
+                .findFirst()
+                .orElse(null);
+            
+            if (player == null) {
+                result.put("result", SubmissionResult.INCORRECT);
+                result.put("reason", "Player not found");
+                return result;
+            }
+            
+            int points = scoreCalculator.calculateScore(basePoints, speedFactor, player);
             
             // Update player score
-            room.getPlayers().get(playerId).addScore(points);
-            room.getPlayers().get(playerId).incrementStreak();
+            player.addScore(points);
+            player.incrementStreak();
             session.updatePlayerScore(playerId, points);
             
-            return Map.of(
-                "correct", true,
-                "word", word,
-                "points", points,
-                "streak", room.getPlayers().get(playerId).getCurrentStreak()
-            );
+            result.put("correct", true);
+            result.put("word", word);
+            result.put("points", points);
+            result.put("streak", player.getCurrentStreak());
+            return result;
         } else {
             // Wrong answer
-            room.getPlayers().get(playerId).resetStreak();
+            // Find and update player
+            Player playerToReset = room.getPlayers().stream()
+                .filter(p -> p.getId().equals(playerId))
+                .findFirst()
+                .orElse(null);
+            if (playerToReset != null) {
+                playerToReset.resetStreak();
+            }
             
             return Map.of(
                 "correct", false,
@@ -172,11 +252,85 @@ public class GameEngine {
         // Apply booster effects based on type
         // This is simplified - full implementation would involve the BoosterService
         
-        return Map.of(
-            "success", true,
-            "boosterType", boosterType,
-            "applied", true
-        );
+        Map<String, Object> boosterResult = new HashMap<>();
+        boosterResult.put("success", true);
+        boosterResult.put("boosterType", boosterType);
+        boosterResult.put("applied", true);
+        return boosterResult;
+    }
+    
+    public Map<String, Object> pauseGame(String roomCode, String playerId) {
+        Room room = roomService.getRoom(roomCode);
+        if (room == null || !room.getHostId().equals(playerId)) {
+            return null;
+        }
+        
+        GameSession session = room.getGameSession();
+        if (session != null) {
+            session.setPhase(GamePhase.LEVEL_END);
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "PAUSED");
+        result.put("roomCode", roomCode);
+        return result;
+    }
+    
+    public Map<String, Object> resumeGame(String roomCode, String playerId) {
+        Room room = roomService.getRoom(roomCode);
+        if (room == null || !room.getHostId().equals(playerId)) {
+            return null;
+        }
+        
+        GameSession session = room.getGameSession();
+        if (session != null) {
+            session.setPhase(GamePhase.PLAYING);
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "RESUMED");
+        result.put("roomCode", roomCode);
+        return result;
+    }
+    
+    public Map<String, Object> endGame(String roomCode, String playerId) {
+        Room room = roomService.getRoom(roomCode);
+        if (room == null || !room.getHostId().equals(playerId)) {
+            return null;
+        }
+        
+        GameSession session = room.getGameSession();
+        if (session != null) {
+            session.endGame();
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "ENDED");
+        result.put("roomCode", roomCode);
+        return result;
+    }
+    
+    public Map<String, Object> getHint(String roomCode, String playerId) {
+        Room room = roomService.getRoom(roomCode);
+        if (room == null) {
+            return null;
+        }
+        
+        GameSession session = room.getGameSession();
+        if (session == null || session.getCurrentLevel() == null) {
+            return null;
+        }
+        
+        Level level = session.getCurrentLevel();
+        List<String> targetWords = level.getTargetWords();
+        
+        Map<String, Object> result = new HashMap<>();
+        if (!targetWords.isEmpty()) {
+            String hint = targetWords.get(0).substring(0, Math.min(3, targetWords.get(0).length()));
+            result.put("hint", hint);
+            result.put("message", "First 3 letters of a word");
+        }
+        return result;
     }
     
     public Map<String, Object> getLeaderboard(String roomCode) {
@@ -187,15 +341,17 @@ public class GameEngine {
         
         GameSession session = room.getGameSession();
         
-        List<Map<String, Object>> leaderboard = room.getPlayers().values().stream()
+        List<Map<String, Object>> leaderboard = room.getPlayers().stream()
             .sorted((p1, p2) -> Integer.compare(p2.getTotalScore(), p1.getTotalScore()))
-            .map(player -> Map.of(
-                "rank", 0, // Will be set after sorting
-                "playerId", (Object) player.getId(),
-                "name", player.getName(),
-                "score", player.getTotalScore(),
-                "streak", player.getCurrentStreak()
-            ))
+            .map(player -> {
+                Map<String, Object> playerData = new HashMap<>();
+                playerData.put("rank", 0);
+                playerData.put("playerId", player.getId());
+                playerData.put("name", player.getName());
+                playerData.put("score", player.getTotalScore());
+                playerData.put("streak", player.getCurrentStreak());
+                return playerData;
+            })
             .collect(Collectors.toList());
         
         // Set ranks
@@ -205,14 +361,15 @@ public class GameEngine {
         
         Level currentLevel = session.getCurrentLevel();
         
-        return Map.of(
-            "leaderboard", leaderboard,
-            "levelProgress", Map.of(
-                "current", session.getCurrentLevelIndex() + 1,
-                "total", session.getLevels().size(),
-                "timeRemaining", calculateTimeRemaining(session) / 1000
-            )
-        );
+        Map<String, Object> levelProgress = new HashMap<>();
+        levelProgress.put("current", session.getCurrentLevelIndex() + 1);
+        levelProgress.put("total", session.getLevels().size());
+        levelProgress.put("timeRemaining", calculateTimeRemaining(session) / 1000);
+        
+        Map<String, Object> leaderboardResult = new HashMap<>();
+        leaderboardResult.put("leaderboard", leaderboard);
+        leaderboardResult.put("levelProgress", levelProgress);
+        return leaderboardResult;
     }
     
     private int calculateGridSize(int levelNumber) {
@@ -236,15 +393,16 @@ public class GameEngine {
             }
         }
         
-        return Map.of(
-            "rows", grid.getRows(),
-            "cols", grid.getCols(),
-            "cells", cells,
-            "shape", Map.of(
-                "mask", mask,
-                "cellCount", grid.getTotalCells()
-            )
-        );
+        Map<String, Object> shape = new HashMap<>();
+        shape.put("mask", mask);
+        shape.put("cellCount", grid.getTotalCells());
+        
+        Map<String, Object> gridMap = new HashMap<>();
+        gridMap.put("rows", grid.getRows());
+        gridMap.put("cols", grid.getCols());
+        gridMap.put("cells", cells);
+        gridMap.put("shape", shape);
+        return gridMap;
     }
     
     private long calculateTimeRemaining(GameSession session) {
