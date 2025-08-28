@@ -1,6 +1,6 @@
 package com.wordbrain2.config;
 
-import com.wordbrain2.websocket.handler.GameWebSocketHandler;
+import com.wordbrain2.controller.websocket.GameWebSocketHandler;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;

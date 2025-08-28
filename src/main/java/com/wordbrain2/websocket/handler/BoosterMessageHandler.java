@@ -1,77 +1,80 @@
 package com.wordbrain2.websocket.handler;
 
-import com.wordbrain2.model.dto.request.UseBoosterRequest;
-import com.wordbrain2.model.enums.BoosterType;
 import com.wordbrain2.service.core.GameEngine;
-import com.wordbrain2.service.booster.BoosterService;
-import com.wordbrain2.service.event.EventBusService;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.wordbrain2.websocket.message.BaseMessage;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
-import java.util.HashMap;
+
 import java.util.Map;
 
+@Slf4j
 @Component
 public class BoosterMessageHandler {
+    
     @Autowired
     private GameEngine gameEngine;
     
     @Autowired
-    private BoosterService boosterService;
+    private RoomMessageHandler roomMessageHandler;
     
-    @Autowired
-    private EventBusService eventBusService;
-    
-    private final Gson gson = new Gson();
-    
-    public void handleMessage(WebSocketSession session, JsonObject message) {
-        JsonObject data = message.getAsJsonObject("data");
+    public Map<String, Object> handleUseBooster(WebSocketSession session, BaseMessage message) {
+        String playerId = roomMessageHandler.getPlayerIdForSession(session.getId());
+        String roomCode = roomMessageHandler.getRoomForPlayer(playerId);
         
-        String roomCode = data.get("roomCode").getAsString();
-        String playerId = data.get("playerId").getAsString();
-        String boosterTypeStr = data.get("boosterType").getAsString();
-        
-        BoosterType boosterType = BoosterType.valueOf(boosterTypeStr);
-        
-        Map<String, Object> boosterData = new HashMap<>();
-        boosterData.put("boosterType", boosterType);
-        
-        Map<String, Object> result = gameEngine.useBooster(roomCode, playerId, boosterData);
-        boolean success = result != null && Boolean.TRUE.equals(result.get("success"));
-        
-        if (success) {
-            Map<String, Object> successData = new HashMap<>();
-            successData.put("success", true);
-            successData.put("boosterType", boosterType.name());
-            successData.put("playerId", playerId);
-            sendResponse(session, "BOOSTER_USED", successData);
-            
-            // Notify all players about booster usage
-            eventBusService.publishBoosterUsed(roomCode, playerId, boosterType);
-        } else {
-            sendError(session, "Failed to use booster");
+        if (playerId == null || roomCode == null) {
+            return createErrorResult("Bạn chưa tham gia phòng.");
         }
+        
+        var result = gameEngine.useBooster(roomCode, playerId, message.getData());
+        
+        if (result != null) {
+            // Check if this booster affects other players
+            Map<?, ?> data = (Map<?, ?>) message.getData();
+            String boosterType = getString(data, "boosterType");
+            
+            if ("FREEZE".equals(boosterType)) {
+                // Add freeze effect info for broadcasting
+                result.put("affectsOthers", true);
+                result.put("effectType", "FREEZE");
+                result.put("effectDuration", 3000);
+                result.put("fromPlayer", playerId);
+            }
+            
+            return result;
+        }
+        
+        return createErrorResult("Không thể sử dụng booster.");
     }
     
-    private void sendResponse(WebSocketSession session, String type, Object data) {
-        try {
-            Map<String, Object> response = new HashMap<>();
-            response.put("type", type);
-            response.put("data", data);
-            response.put("timestamp", System.currentTimeMillis());
-            
-            session.sendMessage(new TextMessage(gson.toJson(response)));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public Map<String, Object> getBoosterStatus(String roomCode, String playerId) {
+        // Get player's available boosters
+        // In a real implementation, this would check the actual game state
+        return Map.of(
+            "success", true,
+            "boosters", Map.of(
+                "DOUBLE_UP", Map.of("available", 1, "cooldown", 0),
+                "FREEZE", Map.of("available", 1, "cooldown", 0),
+                "REVEAL", Map.of("available", 2, "cooldown", 0),
+                "TIME_PLUS", Map.of("available", 2, "cooldown", 0),
+                "SHIELD", Map.of("available", 1, "cooldown", 0),
+                "STREAK_SAVE", Map.of("available", 1, "cooldown", 0),
+                "SKIP_HALF", Map.of("available", 1, "cooldown", 0)
+            )
+        );
     }
     
-    private void sendError(WebSocketSession session, String error) {
-        Map<String, Object> errorData = new HashMap<>();
-        errorData.put("error", error);
-        sendResponse(session, "ERROR", errorData);
+    private String getString(Map<?, ?> map, String key) {
+        if (map == null) return null;
+        Object val = map.get(key);
+        return val != null ? String.valueOf(val) : null;
+    }
+    
+    private Map<String, Object> createErrorResult(String error) {
+        return Map.of(
+            "success", false,
+            "error", error
+        );
     }
 }

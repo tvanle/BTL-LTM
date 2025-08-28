@@ -20,6 +20,7 @@ public enum MessageType {
     REQUEST_HINT,
     
     // Server Responses
+    CONNECTION_SUCCESS,
     ROOM_CREATED,
     ROOM_JOINED,
     PLAYER_JOINED,
@@ -28,6 +29,7 @@ public enum MessageType {
     WORD_REJECTED,
     BOOSTER_APPLIED,
     EFFECT_RECEIVED,
+    HINT_RESPONSE,
     
     // Real-time Updates
     LEADERBOARD_UPDATE,
