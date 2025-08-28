@@ -52,8 +52,16 @@ public class MessageRouter {
             Map<String, Object> result = null;
             MessageType responseType = null;
             
-            switch (gameMessage.getType()) {
-                case "CREATE_ROOM":
+            // Get MessageType enum from message
+            MessageType messageType = gameMessage.getMessageType();
+            if (messageType == null) {
+                log.warn("Unknown message type: {}", gameMessage.getType());
+                sendError(session, "Unknown message type: " + gameMessage.getType());
+                return;
+            }
+            
+            switch (messageType) {
+                case CREATE_ROOM:
                     result = roomMessageHandler.handleCreateRoom(session, gameMessage);
                     responseType = result != null ? MessageType.ROOM_CREATED : null;
                     if (result != null) {
@@ -62,7 +70,7 @@ public class MessageRouter {
                     }
                     break;
                     
-                case "JOIN_ROOM":
+                case JOIN_ROOM:
                     result = roomMessageHandler.handleJoinRoom(session, gameMessage);
                     responseType = result != null ? MessageType.ROOM_JOINED : null;
                     if (result != null) {
@@ -79,7 +87,7 @@ public class MessageRouter {
                     }
                     break;
                     
-                case "LEAVE_ROOM":
+                case LEAVE_ROOM:
                     result = roomMessageHandler.handleLeaveRoom(session, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
                         String roomCode = (String) result.get("roomCode");
@@ -92,7 +100,7 @@ public class MessageRouter {
                     }
                     break;
                     
-                case "PLAYER_READY":
+                case PLAYER_READY:
                     result = roomMessageHandler.handlePlayerReady(session, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
                         String playerId = (String) result.get("playerId");
@@ -107,7 +115,7 @@ public class MessageRouter {
                     }
                     break;
                     
-                case "START_GAME":
+                case START_GAME:
                     result = gameMessageHandler.handleStartGame(session, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
                         String playerId = roomMessageHandler.getPlayerIdForSession(session.getId());
@@ -126,7 +134,7 @@ public class MessageRouter {
                     }
                     break;
                     
-                case "SUBMIT_WORD":
+                case SUBMIT_WORD:
                     result = gameMessageHandler.handleSubmitWord(session, gameMessage);
                     if (result != null) {
                         boolean correct = Boolean.TRUE.equals(result.get("correct"));
@@ -150,7 +158,7 @@ public class MessageRouter {
                     }
                     break;
                     
-                case "USE_BOOSTER":
+                case USE_BOOSTER:
                     result = boosterMessageHandler.handleUseBooster(session, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
                         sendMessage(session, MessageType.BOOSTER_APPLIED, result);
@@ -169,17 +177,13 @@ public class MessageRouter {
                     }
                     break;
                     
-                case "REQUEST_HINT":
+                case REQUEST_HINT:
                     result = gameMessageHandler.handleRequestHint(session, gameMessage);
                     if (result != null) {
                         sendMessage(session, MessageType.HINT_RESPONSE, result);
                     }
                     break;
                     
-                default:
-                    log.warn("Unknown message type: {}", gameMessage.getType());
-                    sendError(session, "Unknown message type");
-                    return;
             }
             
             // Send response if there's an error

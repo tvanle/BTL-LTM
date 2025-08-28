@@ -35,7 +35,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         
         // Send connection success message
         BaseMessage welcomeMessage = new BaseMessage();
-        welcomeMessage.setType(MessageType.CONNECTION_SUCCESS.name());
+        welcomeMessage.setMessageType(MessageType.CONNECTION_SUCCESS);
         Map<String, Object> welcomeData = new HashMap<>();
         welcomeData.put("sessionId", session.getId());
         welcomeData.put("message", "Connected to game server");

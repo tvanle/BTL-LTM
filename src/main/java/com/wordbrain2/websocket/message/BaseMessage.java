@@ -25,4 +25,19 @@ public class BaseMessage {
         this.type = type.name();
         this.data = data;
     }
+    
+    public MessageType getMessageType() {
+        if (type == null) {
+            return null;
+        }
+        try {
+            return MessageType.valueOf(type);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+    
+    public void setMessageType(MessageType messageType) {
+        this.type = messageType != null ? messageType.name() : null;
+    }
 }
