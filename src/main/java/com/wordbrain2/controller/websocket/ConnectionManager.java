@@ -49,6 +49,9 @@ public class ConnectionManager {
     }
     
     public WebSocketSession getSessionByPlayerId(String playerId) {
+        if (playerId == null) {
+            return null;
+        }
         String sessionId = playerToSession.get(playerId);
         return sessionId != null ? sessions.get(sessionId) : null;
     }
@@ -61,6 +64,9 @@ public class ConnectionManager {
     }
     
     public String getPlayerId(String sessionId) {
+        if (sessionId == null) {
+            return null;
+        }
         return sessionToPlayer.get(sessionId);
     }
     
@@ -101,10 +107,16 @@ public class ConnectionManager {
     }
     
     public String getPlayerRoom(String playerId) {
+        if (playerId == null) {
+            return null;
+        }
         return playerToRoom.get(playerId);
     }
     
     public boolean isPlayerInRoom(String playerId, String roomCode) {
+        if (playerId == null || roomCode == null) {
+            return false;
+        }
         return roomCode.equals(playerToRoom.get(playerId));
     }
     
