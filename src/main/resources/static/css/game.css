@@ -1,0 +1,443 @@
+/* Game CSS - WordBrain2 Multiplayer */
+
+/* Game container */
+.game-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Arial', sans-serif;
+}
+
+/* Header section */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.game-title {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.game-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    color: white;
+}
+
+.level-info, .timer-info, .score-info {
+    text-align: center;
+}
+
+.timer {
+    font-size: 28px;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(231, 76, 60, 0.8);
+    padding: 5px 15px;
+    border-radius: 20px;
+    min-width: 80px;
+}
+
+.timer.warning {
+    background: rgba(192, 57, 43, 0.9);
+    animation: timerPulse 0.5s infinite;
+}
+
+/* Main game area */
+.game-main {
+    display: flex;
+    flex: 1;
+    gap: 20px;
+    padding: 20px;
+}
+
+/* Grid section */
+.grid-section {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.grid-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    margin-bottom: 20px;
+}
+
+.word-grid {
+    display: grid;
+    gap: 3px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.grid-cell {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #bdc3c7;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    background: #ecf0f1;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.grid-cell:hover {
+    border-color: #3498db;
+    transform: scale(1.05);
+}
+
+.grid-cell.selected {
+    background: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+.grid-cell.blocked {
+    background: #2c3e50;
+    color: #7f8c8d;
+    cursor: not-allowed;
+}
+
+.grid-cell.correct {
+    background: #27ae60;
+    color: white;
+    animation: wordAccepted 0.5s ease-in-out;
+}
+
+.grid-cell.incorrect {
+    background: #e74c3c;
+    color: white;
+    animation: wordRejected 0.5s ease-in-out;
+}
+
+/* Sidebar */
+.game-sidebar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Leaderboard */
+.leaderboard {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.leaderboard-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.leaderboard-item:last-child {
+    border-bottom: none;
+}
+
+.player-rank {
+    font-weight: bold;
+    color: #3498db;
+    min-width: 30px;
+}
+
+.player-name {
+    flex: 1;
+    margin-left: 10px;
+}
+
+.player-score {
+    font-weight: bold;
+    color: #27ae60;
+}
+
+.leaderboard-item.current-player {
+    background: rgba(52, 152, 219, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 5px 0;
+}
+
+/* Boosters */
+.boosters {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.boosters h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.booster-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.booster-button {
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #3498db;
+    color: white;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px;
+    transition: all 0.2s ease-in-out;
+    position: relative;
+}
+
+.booster-button:hover:not(:disabled) {
+    background: #2980b9;
+    transform: scale(1.05);
+}
+
+.booster-button:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.booster-button.active {
+    background: #e67e22;
+    animation: boosterActivate 1s ease-in-out;
+}
+
+.booster-count {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Found words */
+.found-words {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.found-words h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.word-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.word-item {
+    background: #27ae60;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.word-item.recent {
+    animation: scoreIncrease 0.6s ease-out;
+}
+
+/* Current word display */
+.current-word {
+    text-align: center;
+    margin-top: 10px;
+}
+
+.current-word input {
+    font-size: 24px;
+    padding: 10px 20px;
+    border: 2px solid #bdc3c7;
+    border-radius: 25px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    min-width: 200px;
+}
+
+.current-word input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+}
+
+/* Game status */
+.game-status {
+    text-align: center;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.game-status.waiting {
+    color: #f39c12;
+}
+
+.game-status.playing {
+    color: #27ae60;
+}
+
+.game-status.ended {
+    color: #e74c3c;
+}
+
+/* Effects */
+.player-frozen {
+    pointer-events: none;
+    filter: hue-rotate(240deg) brightness(0.7);
+}
+
+.player-shielded::before {
+    content: '🛡️';
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    font-size: 20px;
+    animation: shield 2s infinite;
+}
+
+.double-points {
+    position: relative;
+}
+
+.double-points::after {
+    content: '2X';
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    background: #f39c12;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(46, 204, 113, 0.95);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    animation: notification 4s ease-in-out;
+}
+
+.notification.error {
+    background: rgba(231, 76, 60, 0.95);
+}
+
+.notification.warning {
+    background: rgba(243, 156, 18, 0.95);
+}
+
+.notification.info {
+    background: rgba(52, 152, 219, 0.95);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .game-main {
+        flex-direction: column;
+        padding: 10px;
+    }
+    
+    .game-header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .game-info {
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .grid-cell {
+        width: 45px;
+        height: 45px;
+        font-size: 18px;
+    }
+    
+    .timer {
+        font-size: 20px;
+    }
+    
+    .booster-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .grid-cell {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+    
+    .game-title {
+        font-size: 18px;
+    }
+    
+    .timer {
+        font-size: 16px;
+        padding: 3px 10px;
+    }
+}

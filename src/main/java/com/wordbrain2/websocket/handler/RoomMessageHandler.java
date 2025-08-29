@@ -1,25 +1,26 @@
 package com.wordbrain2.websocket.handler;
 
+import com.wordbrain2.controller.websocket.ConnectionManager;
 import com.wordbrain2.model.enums.MessageType;
 import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
 public class RoomMessageHandler {
     
-    @Autowired
-    private RoomService roomService;
+    private final RoomService roomService;
+    private final ConnectionManager connectionManager;
     
-    private final Map<String, String> sessionToPlayer = new ConcurrentHashMap<>();
-    private final Map<String, String> playerToRoom = new ConcurrentHashMap<>();
+    public RoomMessageHandler(RoomService roomService, ConnectionManager connectionManager) {
+        this.roomService = roomService;
+        this.connectionManager = connectionManager;
+    }
     
     public Map<String, Object> handleCreateRoom(WebSocketSession session, BaseMessage message) {
         Map<?, ?> data = (Map<?, ?>) message.getData();
@@ -32,8 +33,8 @@ public class RoomMessageHandler {
             String roomCode = (String) result.get("roomCode");
             String playerId = (String) result.get("playerId");
             
-            sessionToPlayer.put(session.getId(), playerId);
-            playerToRoom.put(playerId, roomCode);
+            connectionManager.registerPlayer(session.getId(), playerId);
+            connectionManager.addPlayerToRoom(playerId, roomCode);
         }
         
         return result;
@@ -49,8 +50,8 @@ public class RoomMessageHandler {
         if (result != null) {
             String playerId = (String) result.get("playerId");
             
-            sessionToPlayer.put(session.getId(), playerId);
-            playerToRoom.put(playerId, roomCode);
+            connectionManager.registerPlayer(session.getId(), playerId);
+            connectionManager.addPlayerToRoom(playerId, roomCode);
         }
         
         return result;
@@ -65,7 +66,7 @@ public class RoomMessageHandler {
         }
         
         roomService.removePlayer(roomCode, playerId);
-        playerToRoom.remove(playerId);
+        connectionManager.removePlayerFromRoom(playerId, roomCode);
         
         return Map.of(
             "success", true,
@@ -95,30 +96,24 @@ public class RoomMessageHandler {
     }
     
     public void cleanupSession(String sessionId) {
-        String playerId = sessionToPlayer.remove(sessionId);
-        if (playerId != null) {
-            String roomCode = playerToRoom.remove(playerId);
-            if (roomCode != null) {
-                roomService.removePlayer(roomCode, playerId);
-            }
-        }
+        connectionManager.removeSession(sessionId);
     }
     
     public String getPlayerIdForSession(String sessionId) {
-        return sessionToPlayer.get(sessionId);
+        return connectionManager.getPlayerId(sessionId);
     }
     
     public String getRoomForPlayer(String playerId) {
-        return playerToRoom.get(playerId);
+        return connectionManager.getPlayerRoom(playerId);
     }
     
     public void registerPlayerSession(String sessionId, String playerId, String roomCode) {
-        sessionToPlayer.put(sessionId, playerId);
-        playerToRoom.put(playerId, roomCode);
+        connectionManager.registerPlayer(sessionId, playerId);
+        connectionManager.addPlayerToRoom(playerId, roomCode);
     }
     
     private String resolvePlayerId(WebSocketSession session, BaseMessage message) {
-        String playerId = sessionToPlayer.get(session.getId());
+        String playerId = connectionManager.getPlayerId(session.getId());
         if (playerId == null && message.getData() != null) {
             Map<?, ?> data = (Map<?, ?>) message.getData();
             playerId = getString(data, "playerId");
@@ -129,7 +124,7 @@ public class RoomMessageHandler {
     private String resolveRoomCode(String playerId, BaseMessage message) {
         String roomCode = null;
         if (playerId != null) {
-            roomCode = playerToRoom.get(playerId);
+            roomCode = connectionManager.getPlayerRoom(playerId);
         }
         if (roomCode == null && message.getData() != null) {
             Map<?, ?> data = (Map<?, ?>) message.getData();

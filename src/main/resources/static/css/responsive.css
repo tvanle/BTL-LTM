@@ -1,0 +1,349 @@
+/* Responsive CSS - WordBrain2 Multiplayer */
+
+/* Base styles already covered mobile-first approach */
+
+/* Tablet styles */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+    .game-container {
+        font-size: 14px;
+    }
+    
+    .game-header {
+        padding: 12px 15px;
+    }
+    
+    .game-title {
+        font-size: 20px;
+    }
+    
+    .game-main {
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .grid-cell {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+    
+    .game-sidebar {
+        max-width: 280px;
+    }
+    
+    .timer {
+        font-size: 22px;
+    }
+    
+    .booster-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .booster-button {
+        padding: 10px;
+        font-size: 11px;
+    }
+}
+
+/* Mobile landscape */
+@media screen and (max-width: 767px) and (orientation: landscape) {
+    .game-container {
+        height: 100vh;
+        overflow: hidden;
+    }
+    
+    .game-header {
+        padding: 8px 15px;
+    }
+    
+    .game-title {
+        font-size: 16px;
+    }
+    
+    .game-main {
+        flex-direction: row;
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    .grid-section {
+        flex: 1.5;
+    }
+    
+    .game-sidebar {
+        flex: 1;
+        max-width: 250px;
+        gap: 10px;
+    }
+    
+    .grid-cell {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+    
+    .timer {
+        font-size: 18px;
+    }
+    
+    .leaderboard, .boosters, .found-words {
+        padding: 15px;
+    }
+    
+    .leaderboard {
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    
+    .found-words {
+        max-height: 120px;
+    }
+}
+
+/* Mobile portrait */
+@media screen and (max-width: 767px) and (orientation: portrait) {
+    .game-main {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .grid-section {
+        order: 1;
+    }
+    
+    .game-sidebar {
+        order: 2;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    
+    .leaderboard {
+        grid-column: 1 / -1;
+    }
+    
+    .boosters {
+        grid-column: 1;
+    }
+    
+    .found-words {
+        grid-column: 2;
+    }
+    
+    .booster-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .booster-button {
+        padding: 8px;
+        font-size: 10px;
+    }
+}
+
+/* Small mobile devices */
+@media screen and (max-width: 480px) {
+    .game-header {
+        padding: 10px;
+    }
+    
+    .game-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .timer {
+        font-size: 16px;
+        padding: 5px 10px;
+    }
+    
+    .grid-cell {
+        width: 35px;
+        height: 35px;
+        font-size: 14px;
+        border-width: 1px;
+    }
+    
+    .game-sidebar {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .leaderboard, .boosters, .found-words {
+        grid-column: 1;
+        padding: 12px;
+    }
+    
+    .booster-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    
+    .booster-button {
+        padding: 6px;
+        font-size: 9px;
+    }
+    
+    .current-word input {
+        font-size: 18px;
+        padding: 8px 15px;
+        min-width: 150px;
+    }
+    
+    .notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        padding: 12px 15px;
+        font-size: 14px;
+    }
+}
+
+/* Large screens */
+@media screen and (min-width: 1200px) {
+    .game-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .game-main {
+        gap: 30px;
+        padding: 30px;
+    }
+    
+    .grid-cell {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+    }
+    
+    .game-sidebar {
+        max-width: 350px;
+    }
+    
+    .timer {
+        font-size: 32px;
+        padding: 8px 20px;
+    }
+    
+    .leaderboard, .boosters, .found-words {
+        padding: 25px;
+    }
+    
+    .booster-button {
+        padding: 15px;
+        font-size: 14px;
+    }
+    
+    .current-word input {
+        font-size: 28px;
+        padding: 15px 25px;
+        min-width: 250px;
+    }
+}
+
+/* Touch-specific optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .grid-cell {
+        border-width: 2px;
+        min-height: 44px; /* iOS accessibility guidelines */
+        min-width: 44px;
+    }
+    
+    .booster-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .grid-cell:hover {
+        transform: none; /* Disable hover effects on touch */
+    }
+    
+    .grid-cell:active {
+        transform: scale(0.95);
+        background-color: #3498db;
+    }
+    
+    .booster-button:active {
+        transform: scale(0.95);
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .grid-cell {
+        border-width: 1.5px;
+    }
+    
+    .notification {
+        backdrop-filter: blur(10px);
+    }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01s !important;
+    }
+    
+    .timer-pulse {
+        animation: none;
+    }
+    
+    .booster-activate {
+        animation: none;
+    }
+    
+    .notification-slide {
+        animation: none;
+        position: static;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .game-container {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    }
+    
+    .grid-container, .leaderboard, .boosters, .found-words {
+        background: rgba(52, 73, 94, 0.95);
+        color: #ecf0f1;
+    }
+    
+    .grid-cell {
+        background: #34495e;
+        border-color: #7f8c8d;
+        color: #ecf0f1;
+    }
+    
+    .grid-cell.blocked {
+        background: #2c3e50;
+        color: #95a5a6;
+    }
+    
+    .current-word input {
+        background: rgba(52, 73, 94, 0.9);
+        color: #ecf0f1;
+        border-color: #7f8c8d;
+    }
+}
+
+/* Print styles (if needed) */
+@media print {
+    .game-container {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .boosters, .notification {
+        display: none;
+    }
+    
+    .game-main {
+        flex-direction: column;
+    }
+}

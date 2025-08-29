@@ -1,0 +1,100 @@
+computer
+laptop
+desktop
+monitor
+keyboard
+mouse
+speaker
+headphones
+microphone
+webcam
+printer
+scanner
+router
+modem
+wifi
+internet
+website
+email
+software
+hardware
+operating system
+windows
+linux
+android
+iphone
+smartphone
+tablet
+smartwatch
+bluetooth
+usb
+cable
+charger
+battery
+processor
+memory
+storage
+hard drive
+solid state
+graphics card
+motherboard
+programming
+coding
+algorithm
+database
+server
+cloud
+network
+firewall
+antivirus
+backup
+download
+upload
+streaming
+social media
+facebook
+twitter
+instagram
+youtube
+google
+search engine
+browser
+chrome
+firefox
+safari
+application
+mobile app
+game
+virtual reality
+augmented reality
+artificial intelligence
+machine learning
+blockchain
+cryptocurrency
+bitcoin
+digital
+online
+cyber
+tech
+innovation
+startup
+silicon valley
+coding bootcamp
+developer
+programmer
+engineer
+data scientist
+user interface
+user experience
+responsive design
+frontend
+backend
+fullstack
+api
+framework
+library
+open source
+version control
+git
+github
+debugging

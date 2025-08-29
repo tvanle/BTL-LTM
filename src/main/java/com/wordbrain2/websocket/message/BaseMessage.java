@@ -7,6 +7,8 @@ import java.util.Map;
 @Data
 public class BaseMessage {
     private String type;  // Change to String to accept both enum names and strings
+    private String roomCode;
+    private String playerId;
     private Map<String, Object> data;
     private long timestamp;
     

@@ -9,13 +9,21 @@ import java.util.List;
 @Service
 public class WordValidationService {
     
+    private final PathValidatorService pathValidator;
+    private final DictionaryService dictionaryService;
+    
+    public WordValidationService(PathValidatorService pathValidator, DictionaryService dictionaryService) {
+        this.pathValidator = pathValidator;
+        this.dictionaryService = dictionaryService;
+    }
+    
     public boolean validateWord(String word, List<Cell> path, Grid grid) {
         if (word == null || path == null || path.isEmpty()) {
             return false;
         }
         
-        // Check if path is valid
-        if (!grid.isValidPath(path)) {
+        // Check if path is valid using PathValidatorService
+        if (!pathValidator.isValidPath(path, grid)) {
             return false;
         }
         
@@ -25,7 +33,13 @@ public class WordValidationService {
             formedWord.append(cell.getCharacter());
         }
         
-        return word.equalsIgnoreCase(formedWord.toString());
+        // Verify the formed word matches submitted word
+        if (!word.equalsIgnoreCase(formedWord.toString())) {
+            return false;
+        }
+        
+        // Check if word exists in dictionary
+        return dictionaryService.isValidWord(word);
     }
     
     public boolean coversShape(List<Cell> path, Grid grid) {

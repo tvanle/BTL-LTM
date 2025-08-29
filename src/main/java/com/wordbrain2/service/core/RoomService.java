@@ -102,6 +102,10 @@ public class RoomService {
         return rooms.get(roomCode);
     }
     
+    public Optional<Room> findByCode(String roomCode) {
+        return Optional.ofNullable(rooms.get(roomCode));
+    }
+    
     public boolean roomExists(String roomCode) {
         return rooms.containsKey(roomCode);
     }

@@ -113,4 +113,13 @@ public class Room {
     public List<Player> getPlayers() {
         return new ArrayList<>(players.values());
     }
+    
+    // Convenience methods for compatibility
+    public String getCode() {
+        return roomCode;
+    }
+    
+    public List<String> getPlayerIds() {
+        return new ArrayList<>(players.keySet());
+    }
 }

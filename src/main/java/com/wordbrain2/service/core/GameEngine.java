@@ -9,8 +9,10 @@ import com.wordbrain2.model.enums.SubmissionResult;
 import com.wordbrain2.model.game.*;
 import com.wordbrain2.service.game.DictionaryService;
 import com.wordbrain2.service.game.GridGeneratorService;
+import com.wordbrain2.service.game.PathValidatorService;
 import com.wordbrain2.service.game.WordValidationService;
 import com.wordbrain2.service.scoring.ScoreCalculator;
+import com.wordbrain2.service.scoring.StatisticsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +28,8 @@ public class GameEngine {
     private final WordValidationService wordValidator;
     private final DictionaryService dictionaryService;
     private final ScoreCalculator scoreCalculator;
+    private final PathValidatorService pathValidator;
+    private final StatisticsService statisticsService;
     private final GameConfig gameConfig;
     
     public GameEngine(RoomService roomService, 
@@ -33,12 +37,16 @@ public class GameEngine {
                       WordValidationService wordValidator,
                       DictionaryService dictionaryService,
                       ScoreCalculator scoreCalculator,
+                      PathValidatorService pathValidator,
+                      StatisticsService statisticsService,
                       GameConfig gameConfig) {
         this.roomService = roomService;
         this.gridGenerator = gridGenerator;
         this.wordValidator = wordValidator;
         this.dictionaryService = dictionaryService;
         this.scoreCalculator = scoreCalculator;
+        this.pathValidator = pathValidator;
+        this.statisticsService = statisticsService;
         this.gameConfig = gameConfig;
     }
     
