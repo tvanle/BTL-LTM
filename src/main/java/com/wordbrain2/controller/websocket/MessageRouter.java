@@ -297,7 +297,16 @@ public class MessageRouter {
     
     private Map<String, Object> convertToMap(Object data) {
         if (data instanceof Map) {
-            return (Map<String, Object>) data;
+            Map<String, Object> result = new HashMap<>();
+            Map<?, ?> rawMap = (Map<?, ?>) data;
+            
+            // Filter out null keys
+            rawMap.entrySet().forEach(entry -> {
+                if (entry.getKey() != null) {
+                    result.put(entry.getKey().toString(), entry.getValue());
+                }
+            });
+            return result;
         } else {
             Map<String, Object> wrapper = new HashMap<>();
             wrapper.put("data", data);
