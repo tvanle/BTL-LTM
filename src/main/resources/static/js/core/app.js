@@ -194,6 +194,14 @@ class App {
         const topicEl = document.getElementById('lobby-topic');
         if (topicEl) topicEl.textContent = this.roomInfo.topic;
         
+        // Reset ready button to initial state (not ready)
+        const readyBtn = document.getElementById('ready-btn');
+        if (readyBtn) {
+            readyBtn.textContent = 'Ready';
+            readyBtn.classList.remove('btn-success', 'btn-danger');
+            readyBtn.classList.add('btn-primary');
+        }
+        
         // Hide Start by default; refreshRoomInfo will toggle based on hostId
         const startBtn = document.getElementById('start-game-btn');
         if (startBtn) {
@@ -247,8 +255,17 @@ class App {
         
         if (btn) {
             // Update button to show opposite state
-            btn.textContent = isCurrentlyNotReady ? 'Not Ready' : 'Ready';
-            btn.classList.toggle('btn-success', isCurrentlyNotReady);
+            if (isCurrentlyNotReady) {
+                // Player is becoming ready
+                btn.textContent = 'Cancel Ready';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
+            } else {
+                // Player is canceling ready
+                btn.textContent = 'Ready';
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-primary');
+            }
         }
     }
     
@@ -334,8 +351,10 @@ class App {
             const isSelf = this.playerInfo && this.playerInfo.id === player.id;
             
             playerItem.innerHTML = `
-                <span>${player.name}${isHost ? ' (Host)' : ''}${isSelf ? ' (You)' : ''}</span>
-                <span>${player.ready ? '✓ Ready' : 'Not Ready'}</span>
+                <span>${player.name}${isHost ? ' 👑' : ''}${isSelf ? ' (You)' : ''}</span>
+                <span style="color: ${player.ready ? '#28a745' : '#6c757d'}; font-weight: ${player.ready ? 'bold' : 'normal'}">
+                    ${player.ready ? '✅ Ready' : '⏳ Waiting'}
+                </span>
             `;
             
             playerList.appendChild(playerItem);
