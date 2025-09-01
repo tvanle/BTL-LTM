@@ -1,6 +1,5 @@
 package com.wordbrain2.controller.api;
 
-import com.wordbrain2.model.entity.Player;
 import com.wordbrain2.model.entity.Room;
 import com.wordbrain2.service.core.MatchmakingService;
 import com.wordbrain2.service.core.RoomService;
@@ -11,6 +10,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * REST Controller for Room information queries only.
+ * Room creation and joining are handled via WebSocket.
+ */
 @RestController
 @RequestMapping("/api/rooms")
 @CrossOrigin(origins = "*")
@@ -24,54 +27,13 @@ public class RoomController {
         this.matchmakingService = matchmakingService;
     }
     
-    @PostMapping("/create")
-    public ResponseEntity<?> createRoom(@RequestBody Map<String, String> request) {
-        String playerName = request.get("playerName");
-        String topic = request.get("topic");
-        String sessionId = request.get("sessionId");
-        
-        if (playerName == null || topic == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing required fields"));
-        }
-        
-        var result = roomService.createRoom(playerName, topic, sessionId != null ? sessionId : "");
-        
-        if (result != null) {
-            return ResponseEntity.ok(result);
-        }
-        
-        return ResponseEntity.badRequest().body(Map.of("error", "Failed to create room"));
-    }
+    // CREATE and JOIN endpoints removed - now handled via WebSocket
+    // Use WebSocket messages CREATE_ROOM and JOIN_ROOM instead
     
-    @PostMapping("/join")
-    public ResponseEntity<?> joinRoom(@RequestBody Map<String, String> request) {
-        String roomCode = request.get("roomCode");
-        String playerName = request.get("playerName");
-        String sessionId = request.get("sessionId");
-        
-        if (roomCode == null || playerName == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing required fields"));
-        }
-        
-        // Validate room code format (must be 6 uppercase characters)
-        if (roomCode.length() != 6 || !roomCode.matches("[A-Z0-9]{6}")) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid room code format"));
-        }
-        
-        // Check if room exists
-        if (!roomService.roomExists(roomCode)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Room does not exist"));
-        }
-        
-        var result = roomService.joinRoom(roomCode, playerName, sessionId != null ? sessionId : "");
-        
-        if (result != null) {
-            return ResponseEntity.ok(result);
-        }
-        
-        return ResponseEntity.badRequest().body(Map.of("error", "Failed to join room - Room may be full or already started"));
-    }
-    
+    /**
+     * Get room information by room code
+     * Used for refreshing room state in UI
+     */
     @GetMapping("/{roomCode}")
     public ResponseEntity<?> getRoomInfo(@PathVariable String roomCode) {
         Room room = roomService.getRoom(roomCode);
@@ -91,6 +53,10 @@ public class RoomController {
         return ResponseEntity.notFound().build();
     }
     
+    /**
+     * List all active rooms
+     * Used for room browser/discovery
+     */
     @GetMapping
     public ResponseEntity<?> listRooms() {
         var rooms = roomService.getAllRooms().values().stream()
@@ -107,31 +73,12 @@ public class RoomController {
         return ResponseEntity.ok(rooms);
     }
     
-    @PostMapping("quickmatch/")
-    public ResponseEntity<?> quickMatch(@RequestBody Map<String, String> request) {
-        String playerName = request.get("playerName");
-        String sessionId = request.get("sessionId");
-        
-        if (playerName == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Player name required"));
-        }
-        
-        Player player = new Player(playerName, sessionId != null ? sessionId : "");
-        Optional<Room> room = matchmakingService.quickMatch(player);
-        
-        if (room.isPresent()) {
-            Room foundRoom = room.get();
-            var joinResult = roomService.joinRoom(foundRoom.getRoomCode(), playerName, sessionId);
-            if (joinResult != null) {
-                return ResponseEntity.ok(joinResult);
-            }
-        }
-        
-        // No available room found, create new one
-        var createResult = roomService.createRoom(playerName, "general", sessionId != null ? sessionId : "");
-        return ResponseEntity.ok(createResult);
-    }
+    // QUICKMATCH endpoint removed - implement via WebSocket if needed
     
+    /**
+     * Find available room by topic and skill level
+     * Used for matchmaking suggestions
+     */
     @GetMapping("/find")
     public ResponseEntity<?> findRoom(@RequestParam String topic, @RequestParam(defaultValue = "0") int skillLevel) {
         Optional<Room> room = matchmakingService.findAvailableRoom(topic, skillLevel);

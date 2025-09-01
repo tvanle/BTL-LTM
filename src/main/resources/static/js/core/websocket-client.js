@@ -74,6 +74,14 @@ class WebSocketClient {
             console.log('Received message:', message);
             
             switch (message.type) {
+                case 'ROOM_CREATED':
+                    this.handleRoomCreated(message.data);
+                    break;
+                    
+                case 'ROOM_JOINED':
+                    this.handleRoomJoined(message.data);
+                    break;
+                    
                 case 'PLAYER_JOINED':
                     this.handlePlayerJoined(message.data);
                     break;
@@ -140,6 +148,44 @@ class WebSocketClient {
             
         } catch (error) {
             console.error('Error handling message:', error);
+        }
+    }
+    
+    handleRoomCreated(data) {
+        console.log('Room created:', data);
+        if (window.app) {
+            // Update player info with ID from server
+            window.app.playerInfo.id = data.playerId;
+            
+            // Update room info
+            window.app.roomInfo = {
+                roomCode: data.roomCode,
+                topic: data.topic,
+                hostId: data.playerId
+            };
+            
+            // Show lobby
+            window.app.showLobby();
+            window.app.refreshRoomInfo();
+        }
+    }
+    
+    handleRoomJoined(data) {
+        console.log('Room joined:', data);
+        if (window.app) {
+            // Update player info with ID from server
+            window.app.playerInfo.id = data.playerId;
+            
+            // Update room info
+            window.app.roomInfo = {
+                roomCode: data.roomCode,
+                topic: data.topic
+            };
+            
+            // Show lobby
+            window.app.showLobby();
+            window.app.showNotification(`Successfully joined room ${data.roomCode}`, 'success');
+            window.app.refreshRoomInfo();
         }
     }
     
@@ -279,7 +325,15 @@ class WebSocketClient {
     
     handleError(data) {
         console.error('Server error:', data);
-        this.showNotification(data.error || 'An error occurred', 'error');
+        const errorMsg = data.error || 'An error occurred';
+        this.showNotification(errorMsg, 'error');
+        
+        // Handle specific errors
+        if (errorMsg.includes('does not exist')) {
+            // Clear room code input if room doesn't exist
+            const roomCodeInput = document.getElementById('room-code');
+            if (roomCodeInput) roomCodeInput.value = '';
+        }
     }
 
     handleInvalidAction(data) {

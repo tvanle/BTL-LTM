@@ -97,49 +97,47 @@ class App {
         const levelCount = document.getElementById('level-count').value || 10;
         const levelDuration = document.getElementById('level-duration').value || 30;
         
-        try {
-            const response = await fetch('/api/rooms/create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    playerName: hostName,
-                    topic: topic,
-                    levelCount: parseInt(levelCount),
-                    levelDuration: parseInt(levelDuration)
-                })
+        if (!hostName || !topic) {
+            alert('Please enter your name and select a topic');
+            return;
+        }
+        
+        // Store temporarily to use after connection
+        this.pendingCreateRoom = {
+            playerName: hostName,
+            topic: topic,
+            levelCount: parseInt(levelCount),
+            levelDuration: parseInt(levelDuration)
+        };
+        
+        // Connect WebSocket first
+        if (!window.websocketClient || !window.websocketClient.connected) {
+            window.websocketClient = new WebSocketClient();
+            window.websocketClient.connect();
+            
+            // Wait for connection then send create room message
+            setTimeout(() => {
+                this.sendCreateRoomMessage();
+            }, 500);
+        } else {
+            this.sendCreateRoomMessage();
+        }
+    }
+    
+    sendCreateRoomMessage() {
+        if (this.pendingCreateRoom) {
+            window.websocketClient.send({
+                type: 'CREATE_ROOM',
+                data: this.pendingCreateRoom
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                this.playerInfo = {
-                    id: data.playerId,
-                    name: data.playerName,
-                    isHost: true
-                };
-                this.roomInfo = {
-                    roomCode: data.roomCode,
-                    topic: data.topic
-                };
-                
-                // Connect WebSocket
-                if (!window.websocketClient) {
-                    window.websocketClient = new WebSocketClient();
-                }
-                window.websocketClient.connect();
-                
-                // Show lobby
-                this.showLobby();
-
-                // Refresh room info for counts/maxPlayers
-                this.refreshRoomInfo();
-            } else {
-                alert('Failed to create room');
-            }
-        } catch (error) {
-            console.error('Error creating room:', error);
-            alert('Error creating room');
+            // Store player name for later use
+            this.playerInfo = {
+                name: this.pendingCreateRoom.playerName,
+                isHost: true
+            };
+            
+            delete this.pendingCreateRoom;
         }
     }
     
@@ -147,70 +145,45 @@ class App {
         const playerName = document.getElementById('player-name').value;
         const roomCode = document.getElementById('room-code').value.toUpperCase();
         
-        try {
-            const response = await fetch('/api/rooms/join', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    playerName: playerName,
-                    roomCode: roomCode
-                })
+        if (!playerName || !roomCode) {
+            alert('Please enter your name and room code');
+            return;
+        }
+        
+        // Store temporarily to use after connection
+        this.pendingJoinRoom = {
+            playerName: playerName,
+            roomCode: roomCode
+        };
+        
+        // Connect WebSocket first
+        if (!window.websocketClient || !window.websocketClient.connected) {
+            window.websocketClient = new WebSocketClient();
+            window.websocketClient.connect();
+            
+            // Wait for connection then send join room message
+            setTimeout(() => {
+                this.sendJoinRoomMessage();
+            }, 500);
+        } else {
+            this.sendJoinRoomMessage();
+        }
+    }
+    
+    sendJoinRoomMessage() {
+        if (this.pendingJoinRoom) {
+            window.websocketClient.send({
+                type: 'JOIN_ROOM',
+                data: this.pendingJoinRoom
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                this.playerInfo = {
-                    id: data.playerId,
-                    name: data.playerName,
-                    isHost: false
-                };
-                this.roomInfo = {
-                    roomCode: data.roomCode,
-                    topic: data.topic
-                };
-                
-                // Connect WebSocket
-                if (!window.websocketClient) {
-                    window.websocketClient = new WebSocketClient();
-                }
-                window.websocketClient.connect();
-                
-                // Send join message
-                setTimeout(() => {
-                    window.websocketClient.send({
-                        type: 'JOIN_ROOM',
-                        data: {
-                            roomCode: roomCode,
-                            playerName: playerName
-                        }
-                    });
-                }, 1000);
-                
-                // Show lobby
-                this.showLobby();
-                
-                // Show success message
-                this.showNotification(`Successfully joined room ${roomCode}`, 'success');
-
-                // Refresh room info for counts/maxPlayers
-                this.refreshRoomInfo();
-            } else {
-                const errorData = await response.json();
-                const errorMessage = errorData.error || 'Failed to join room';
-                
-                // Show specific error message
-                this.showNotification(errorMessage, 'error');
-                
-                // Clear room code input if room doesn't exist
-                if (errorMessage.includes('does not exist')) {
-                    document.getElementById('room-code').value = '';
-                }
-            }
-        } catch (error) {
-            console.error('Error joining room:', error);
-            alert('Error joining room');
+            // Store player name for later use
+            this.playerInfo = {
+                name: this.pendingJoinRoom.playerName,
+                isHost: false
+            };
+            
+            delete this.pendingJoinRoom;
         }
     }
     
