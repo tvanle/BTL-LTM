@@ -115,40 +115,6 @@ public class RoomService {
         return new ConcurrentHashMap<>(rooms);
     }
     
-    // Additional methods needed by other classes
-    public RoomResponse createRoom(CreateRoomRequest request, String hostId) {
-        Room room = new Room(hostId, request.getTopic());
-        room.setRoomCode(generateRoomCode());
-        room.setMaxPlayers(request.getMaxPlayers());
-        room.setLevelCount(request.getLevelCount());
-        room.setLevelDuration(request.getLevelDuration());
-        room.setStatus(RoomStatus.WAITING);
-        if (request.getEnabledBoosters() != null) {
-            room.setAllowedBoosters(request.getEnabledBoosters());
-        }
-        
-        rooms.put(room.getRoomCode(), room);
-        
-        RoomResponse response = new RoomResponse();
-        response.setRoomCode(room.getRoomCode());
-        response.setHostId(hostId);
-        response.setStatus(room.getStatus());
-        response.setSuccess(true);
-        return response;
-    }
-    
-    public void createRoom(Room room) {
-        rooms.put(room.getRoomCode(), room);
-    }
-    
-    public boolean addPlayerToRoom(String roomCode, Player player) {
-        Room room = rooms.get(roomCode);
-        if (room != null && !room.isFull()) {
-            return room.addPlayer(player);
-        }
-        return false;
-    }
-    
     
     public boolean areAllPlayersReady(String roomCode) {
         Room room = rooms.get(roomCode);
