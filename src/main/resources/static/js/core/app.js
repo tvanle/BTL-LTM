@@ -234,18 +234,21 @@ class App {
     
     toggleReady() {
         const btn = document.getElementById('ready-btn');
-        const isReady = btn && btn.textContent === 'Ready';
+        // Check if currently showing "Ready" (meaning player is NOT ready yet)
+        const isCurrentlyNotReady = btn && btn.textContent === 'Ready';
         
+        // Send the new ready state
         window.websocketClient.send({
             type: 'PLAYER_READY',
             data: {
-                ready: !isReady
+                ready: isCurrentlyNotReady  // If showing "Ready", we want to become ready (true)
             }
         });
         
         if (btn) {
-            btn.textContent = isReady ? 'Not Ready' : 'Ready';
-            btn.classList.toggle('btn-success', !isReady);
+            // Update button to show opposite state
+            btn.textContent = isCurrentlyNotReady ? 'Not Ready' : 'Ready';
+            btn.classList.toggle('btn-success', isCurrentlyNotReady);
         }
     }
     
