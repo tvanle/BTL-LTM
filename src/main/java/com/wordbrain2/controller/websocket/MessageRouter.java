@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.wordbrain2.model.enums.MessageType;
 import com.wordbrain2.service.core.GameEngine;
 import com.wordbrain2.service.core.RoomService;
+import com.wordbrain2.service.messaging.MessageBroadcastService;
 import com.wordbrain2.websocket.handler.RoomMessageHandler;
 import com.wordbrain2.websocket.handler.GameMessageHandler;
 import com.wordbrain2.websocket.handler.BoosterMessageHandler;
@@ -40,6 +41,9 @@ public class MessageRouter {
     
     @Autowired
     private RoomService roomService;
+    
+    @Autowired
+    private MessageBroadcastService broadcastService;
     
     private final Gson gson = new Gson();
     
@@ -234,74 +238,26 @@ public class MessageRouter {
     }
     
     private void sendMessage(WebSocketSession session, MessageType type, Object data) {
-        try {
-            BaseMessage message = new BaseMessage(type, convertToMap(data));
-            session.sendMessage(new TextMessage(gson.toJson(message)));
-        } catch (Exception e) {
-            log.error("Error sending message", e);
-        }
+        broadcastService.sendMessage(session, type, data);
     }
     
     private void sendError(WebSocketSession session, String error) {
-        sendMessage(session, MessageType.ERROR, Map.of("error", error));
+        broadcastService.sendError(session, error);
     }
 
     private void sendInvalidAction(WebSocketSession session, String reason) {
-        sendMessage(session, MessageType.INVALID_ACTION, Map.of("reason", reason));
+        broadcastService.sendInvalidAction(session, reason);
     }
     
     private void broadcastToRoom(String roomCode, MessageType type, Object data) {
-        broadcastToRoom(roomCode, type, data, null);
+        broadcastService.broadcastToRoom(roomCode, type, data);
     }
     
     private void broadcastToRoom(String roomCode, MessageType type, Object data, String excludeSessionId) {
-        var room = roomService.getRoom(roomCode);
-        if (room != null) {
-            room.getPlayers().forEach(player -> {
-                String sessionId = player.getSessionId();
-                if (sessionId == null) return;
-                if (excludeSessionId != null && excludeSessionId.equals(sessionId)) return;
-
-                WebSocketSession session = connectionManager.getSession(sessionId);
-                if (session != null && session.isOpen()) {
-                    sendMessage(session, type, data);
-                }
-            });
-        }
+        broadcastService.broadcastToRoom(roomCode, type, data, excludeSessionId);
     }
 
     private void broadcastRoomState(String roomCode) {
-        var room = roomService.getRoom(roomCode);
-        if (room == null) return;
-
-        List<Map<String, Object>> players = new ArrayList<>();
-        room.getPlayers().forEach(p -> {
-            boolean ready = Boolean.TRUE.equals(room.getPlayerReady().get(p.getId()));
-            Map<String, Object> pInfo = new HashMap<>();
-            pInfo.put("id", p.getId());
-            pInfo.put("name", p.getName());
-            pInfo.put("ready", ready);
-            pInfo.put("isHost", p.getId().equals(room.getHostId()));
-            players.add(pInfo);
-        });
-
-        Map<String, Object> state = new HashMap<>();
-        state.put("roomCode", room.getRoomCode());
-        state.put("hostId", room.getHostId());
-        state.put("players", players);
-        state.put("playersCount", room.getPlayerCount());
-        state.put("maxPlayers", room.getMaxPlayers());
-        
-        broadcastToRoom(roomCode, MessageType.ROOM_STATE, state);
-    }
-    
-    private Map<String, Object> convertToMap(Object data) {
-        if (data instanceof Map) {
-            return (Map<String, Object>) data;
-        } else {
-            Map<String, Object> wrapper = new HashMap<>();
-            wrapper.put("data", data);
-            return wrapper;
-        }
+        broadcastService.   broadcastRoomState(roomCode);
     }
 }

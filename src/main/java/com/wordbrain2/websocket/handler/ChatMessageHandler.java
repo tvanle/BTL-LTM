@@ -3,6 +3,7 @@ package com.wordbrain2.websocket.handler;
 import com.wordbrain2.controller.websocket.ConnectionManager;
 import com.wordbrain2.model.entity.Room;
 import com.wordbrain2.service.core.RoomService;
+import com.wordbrain2.service.messaging.MessageBroadcastService;
 import com.wordbrain2.websocket.message.BaseMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
@@ -14,10 +15,13 @@ public class ChatMessageHandler {
     
     private final RoomService roomService;
     private final ConnectionManager connectionManager;
+    private final MessageBroadcastService broadcastService;
     
-    public ChatMessageHandler(RoomService roomService, ConnectionManager connectionManager) {
+    public ChatMessageHandler(RoomService roomService, ConnectionManager connectionManager, 
+                            MessageBroadcastService broadcastService) {
         this.roomService = roomService;
         this.connectionManager = connectionManager;
+        this.broadcastService = broadcastService;
     }
     
     public void handleChatMessage(WebSocketSession session, BaseMessage message) {
@@ -59,7 +63,7 @@ public class ChatMessageHandler {
         
         // Create chat response
         BaseMessage chatResponse = createChatResponse(playerId, filteredMessage, messageType);
-        chatResponse.setRoomCode(room.getCode());
+        chatResponse.setRoomCode(room.getRoomCode());
         
         // Broadcast to all players in room
         broadcastToRoom(room, chatResponse);
@@ -88,20 +92,17 @@ public class ChatMessageHandler {
     }
     
     private void broadcastToRoom(Room room, BaseMessage message) {
-//        connectionManager.broadcastToRoom(room.getCode(), message);
+        broadcastService.broadcastToRoom(room.getRoomCode(), message);
     }
     
     private void sendErrorMessage(WebSocketSession session, String error) {
-        BaseMessage errorMessage = new BaseMessage();
-        errorMessage.setType("ERROR");
-        errorMessage.setData(Map.of("message", error));
-        connectionManager.sendMessage(session, errorMessage);
+        broadcastService.sendError(session, error);
     }
     
     public void handlePlayerJoinedRoom(Room room, String playerId) {
         BaseMessage joinMessage = new BaseMessage();
         joinMessage.setType("PLAYER_JOINED_CHAT");
-        joinMessage.setRoomCode(room.getCode());
+        joinMessage.setRoomCode(room.getRoomCode());
         joinMessage.setPlayerId(playerId);
         joinMessage.setData(Map.of(
             "message", "Player joined the game",
@@ -114,7 +115,7 @@ public class ChatMessageHandler {
     public void handlePlayerLeftRoom(Room room, String playerId) {
         BaseMessage leaveMessage = new BaseMessage();
         leaveMessage.setType("PLAYER_LEFT_CHAT");
-        leaveMessage.setRoomCode(room.getCode());
+        leaveMessage.setRoomCode(room.getRoomCode());
         leaveMessage.setPlayerId(playerId);
         leaveMessage.setData(Map.of(
             "message", "Player left the game",
