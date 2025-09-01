@@ -99,10 +99,6 @@ public class RoomMessageHandler {
         );
     }
     
-    public void cleanupSession(String sessionId) {
-        connectionManager.removeSession(sessionId);
-    }
-    
     public String getPlayerIdForSession(String sessionId) {
         return connectionManager.getPlayerId(sessionId);
     }

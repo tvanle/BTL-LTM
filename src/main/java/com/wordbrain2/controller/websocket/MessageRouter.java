@@ -208,17 +208,23 @@ public class MessageRouter {
         String playerId = roomMessageHandler.getPlayerIdForSession(sessionId);
         String roomCode = playerId != null ? roomMessageHandler.getRoomForPlayer(playerId) : null;
         
-        // Clean up handler state
-        roomMessageHandler.cleanupSession(sessionId);
-        
-        // Notify room if player was in one
+        // IMPORTANT: Remove player from room when disconnected
         if (playerId != null && roomCode != null) {
+            log.info("Player {} disconnected from room {} - removing from room", playerId, roomCode);
+            
+            // Remove player from room
+            roomService.removePlayer(roomCode, playerId);
+            
+            // Notify other players
             broadcastToRoom(roomCode, MessageType.PLAYER_LEFT, Map.of(
                 "playerId", playerId,
                 "message", "Player disconnected"
             ));
             broadcastRoomState(roomCode);
         }
+        
+        // Clean up connection manager state
+        connectionManager.removeSession(sessionId);
     }
     
     private void scheduleGameStart(String roomCode) {

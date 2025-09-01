@@ -149,12 +149,6 @@ public class RoomService {
         return false;
     }
     
-    public void removePlayerFromRoom(String roomCode, String playerId) {
-        Room room = rooms.get(roomCode);
-        if (room != null) {
-            room.removePlayer(playerId);
-        }
-    }
     
     public boolean areAllPlayersReady(String roomCode) {
         Room room = rooms.get(roomCode);
