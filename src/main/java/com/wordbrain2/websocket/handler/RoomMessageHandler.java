@@ -30,11 +30,11 @@ public class RoomMessageHandler {
         var result = roomService.createRoom(playerName, topic, session.getId());
         
         if (result != null) {
-            String roomCode = (String) result.get("roomCode");
             String playerId = (String) result.get("playerId");
             
+            // Only register session-player mapping
             connectionManager.registerPlayer(session.getId(), playerId);
-            connectionManager.addPlayerToRoom(playerId, roomCode);
+            // Room-player relationship is already handled by RoomService
         }
         
         return result;
@@ -50,8 +50,9 @@ public class RoomMessageHandler {
         if (result != null) {
             String playerId = (String) result.get("playerId");
             
+            // Only register session-player mapping
             connectionManager.registerPlayer(session.getId(), playerId);
-            connectionManager.addPlayerToRoom(playerId, roomCode);
+            // Room-player relationship is already handled by RoomService
         }
         
         return result;
@@ -65,8 +66,8 @@ public class RoomMessageHandler {
             return createErrorResult("Invalid player or room");
         }
         
+        // Only need to call RoomService, it handles everything
         roomService.removePlayer(roomCode, playerId);
-        connectionManager.removePlayerFromRoom(playerId, roomCode);
         
         return Map.of(
             "success", true,
@@ -104,12 +105,14 @@ public class RoomMessageHandler {
     }
     
     public String getRoomForPlayer(String playerId) {
-        return connectionManager.getPlayerRoom(playerId);
+        // Use RoomService to find player's room
+        return roomService.getPlayerRoom(playerId);
     }
     
     public void registerPlayerSession(String sessionId, String playerId, String roomCode) {
+        // Only register session-player mapping
         connectionManager.registerPlayer(sessionId, playerId);
-        connectionManager.addPlayerToRoom(playerId, roomCode);
+        // Room-player relationship should be handled by RoomService
     }
     
     private String resolvePlayerId(WebSocketSession session, BaseMessage message) {
@@ -124,7 +127,7 @@ public class RoomMessageHandler {
     private String resolveRoomCode(String playerId, BaseMessage message) {
         String roomCode = null;
         if (playerId != null) {
-            roomCode = connectionManager.getPlayerRoom(playerId);
+            roomCode = roomService.getPlayerRoom(playerId);
         }
         if (roomCode == null && message.getData() != null) {
             Map<?, ?> data = (Map<?, ?>) message.getData();

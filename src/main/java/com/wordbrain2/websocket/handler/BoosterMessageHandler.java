@@ -2,6 +2,7 @@ package com.wordbrain2.websocket.handler;
 
 import com.wordbrain2.controller.websocket.ConnectionManager;
 import com.wordbrain2.service.core.GameEngine;
+import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -15,15 +16,17 @@ public class BoosterMessageHandler {
     
     private final GameEngine gameEngine;
     private final ConnectionManager connectionManager;
+    private final RoomService roomService;
     
-    public BoosterMessageHandler(GameEngine gameEngine, ConnectionManager connectionManager) {
+    public BoosterMessageHandler(GameEngine gameEngine, ConnectionManager connectionManager, RoomService roomService) {
         this.gameEngine = gameEngine;
         this.connectionManager = connectionManager;
+        this.roomService = roomService;
     }
     
     public Map<String, Object> handleUseBooster(WebSocketSession session, BaseMessage message) {
         String playerId = connectionManager.getPlayerId(session.getId());
-        String roomCode = connectionManager.getPlayerRoom(playerId);
+        String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {
             return createErrorResult("Bạn chưa tham gia phòng.");

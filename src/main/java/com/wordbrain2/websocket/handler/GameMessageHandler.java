@@ -26,7 +26,7 @@ public class GameMessageHandler {
     
     public Map<String, Object> handleStartGame(WebSocketSession session, BaseMessage message) {
         String playerId = connectionManager.getPlayerId(session.getId());
-        String roomCode = connectionManager.getPlayerRoom(playerId);
+        String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {
             return createErrorResult("Bạn chưa tham gia phòng.");
@@ -67,7 +67,7 @@ public class GameMessageHandler {
     
     public Map<String, Object> handleSubmitWord(WebSocketSession session, BaseMessage message) {
         String playerId = connectionManager.getPlayerId(session.getId());
-        String roomCode = connectionManager.getPlayerRoom(playerId);
+        String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {
             return createErrorResult("Bạn chưa tham gia phòng.");
@@ -84,7 +84,7 @@ public class GameMessageHandler {
     
     public Map<String, Object> handleRequestHint(WebSocketSession session, BaseMessage message) {
         String playerId = connectionManager.getPlayerId(session.getId());
-        String roomCode = connectionManager.getPlayerRoom(playerId);
+        String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {
             return createErrorResult("Bạn chưa tham gia phòng.");

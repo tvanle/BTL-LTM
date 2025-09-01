@@ -14,6 +14,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * Manages WebSocket connections and session-player mappings only.
+ * Room-player relationships are handled by RoomService.
+ */
 @Slf4j
 @Component
 public class ConnectionManager {
@@ -21,8 +25,6 @@ public class ConnectionManager {
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> sessionToPlayer = new ConcurrentHashMap<>();
     private final Map<String, String> playerToSession = new ConcurrentHashMap<>();
-    private final Map<String, Set<String>> roomToPlayers = new ConcurrentHashMap<>();
-    private final Map<String, String> playerToRoom = new ConcurrentHashMap<>();
     private final Gson gson = new Gson();
     
     // Basic session management
@@ -35,10 +37,6 @@ public class ConnectionManager {
         String playerId = sessionToPlayer.remove(sessionId);
         if (playerId != null) {
             playerToSession.remove(playerId);
-            String roomCode = playerToRoom.remove(playerId);
-            if (roomCode != null) {
-                removePlayerFromRoom(playerId, roomCode);
-            }
         }
         sessions.remove(sessionId);
         log.info("Session removed: {}", sessionId);
@@ -74,51 +72,11 @@ public class ConnectionManager {
         String playerId = sessionToPlayer.remove(sessionId);
         if (playerId != null) {
             playerToSession.remove(playerId);
-            String roomCode = playerToRoom.remove(playerId);
-            if (roomCode != null) {
-                removePlayerFromRoom(playerId, roomCode);
-            }
             log.debug("Player {} unregistered from session {}", playerId, sessionId);
         }
     }
     
-    // Room management
-    public void addPlayerToRoom(String playerId, String roomCode) {
-        playerToRoom.put(playerId, roomCode);
-        roomToPlayers.computeIfAbsent(roomCode, k -> ConcurrentHashMap.newKeySet()).add(playerId);
-        log.debug("Player {} added to room {}", playerId, roomCode);
-    }
-    
-    public void removePlayerFromRoom(String playerId, String roomCode) {
-        playerToRoom.remove(playerId);
-        Set<String> roomPlayers = roomToPlayers.get(roomCode);
-        if (roomPlayers != null) {
-            roomPlayers.remove(playerId);
-            if (roomPlayers.isEmpty()) {
-                roomToPlayers.remove(roomCode);
-                log.debug("Room {} removed (empty)", roomCode);
-            }
-        }
-        log.debug("Player {} removed from room {}", playerId, roomCode);
-    }
-    
-    public Set<String> getPlayersInRoom(String roomCode) {
-        return roomToPlayers.getOrDefault(roomCode, Set.of());
-    }
-    
-    public String getPlayerRoom(String playerId) {
-        if (playerId == null) {
-            return null;
-        }
-        return playerToRoom.get(playerId);
-    }
-    
-    public boolean isPlayerInRoom(String playerId, String roomCode) {
-        if (playerId == null || roomCode == null) {
-            return false;
-        }
-        return roomCode.equals(playerToRoom.get(playerId));
-    }
+    // Room management removed - use RoomService instead
     
     // Message sending
     public void sendMessage(WebSocketSession session, BaseMessage message) {
@@ -149,24 +107,7 @@ public class ConnectionManager {
         playerIds.forEach(playerId -> sendMessageToPlayer(playerId, message));
     }
     
-    public void broadcastToRoom(String roomCode, BaseMessage message) {
-        Set<String> players = getPlayersInRoom(roomCode);
-        if (players.isEmpty()) {
-            log.warn("Cannot broadcast to room {} - no players", roomCode);
-            return;
-        }
-        
-        players.forEach(playerId -> sendMessageToPlayer(playerId, message));
-        log.debug("Broadcast message to room {} ({} players): {}", roomCode, players.size(), message.getType());
-    }
-    
-    public void broadcastToRoomExcept(String roomCode, String excludePlayerId, BaseMessage message) {
-        Set<String> players = getPlayersInRoom(roomCode);
-        players.stream()
-            .filter(playerId -> !playerId.equals(excludePlayerId))
-            .forEach(playerId -> sendMessageToPlayer(playerId, message));
-        log.debug("Broadcast message to room {} excluding player {}: {}", roomCode, excludePlayerId, message.getType());
-    }
+    // Broadcast methods removed - use MessageRouter with RoomService instead
     
     public void broadcastToAll(BaseMessage message) {
         sessions.values().forEach(session -> sendMessage(session, message));
@@ -178,14 +119,7 @@ public class ConnectionManager {
         return sessions.size();
     }
     
-    public int getRoomPlayerCount(String roomCode) {
-        Set<String> players = roomToPlayers.get(roomCode);
-        return players != null ? players.size() : 0;
-    }
-    
-    public int getTotalRoomCount() {
-        return roomToPlayers.size();
-    }
+    // Room statistics removed - use RoomService instead
     
     public boolean isSessionActive(String sessionId) {
         WebSocketSession session = sessions.get(sessionId);
@@ -197,19 +131,13 @@ public class ConnectionManager {
         return sessionId != null && isSessionActive(sessionId);
     }
     
-    public List<String> getOnlinePlayersInRoom(String roomCode) {
-        return getPlayersInRoom(roomCode).stream()
-            .filter(this::isPlayerOnline)
-            .collect(Collectors.toList());
-    }
+    // Online players in room removed - use RoomService instead
     
     public Set<String> getAllConnectedPlayers() {
         return Set.copyOf(playerToSession.keySet());
     }
     
-    public Set<String> getAllActiveRooms() {
-        return Set.copyOf(roomToPlayers.keySet());
-    }
+    // Active rooms removed - use RoomService instead
     
     // Health check and cleanup
     public void cleanupClosedSessions() {
@@ -239,13 +167,12 @@ public class ConnectionManager {
         return Map.of(
             "totalSessions", sessions.size(),
             "totalPlayers", playerToSession.size(),
-            "totalRooms", roomToPlayers.size(),
             "activeSessions", sessions.values().stream().mapToInt(session -> session.isOpen() ? 1 : 0).sum()
         );
     }
     
     public void logConnectionStatus() {
-        log.info("Connection Status - Sessions: {}, Players: {}, Rooms: {}", 
-            sessions.size(), playerToSession.size(), roomToPlayers.size());
+        log.info("Connection Status - Sessions: {}, Players: {}", 
+            sessions.size(), playerToSession.size());
     }
 }

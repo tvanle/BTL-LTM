@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -220,5 +221,40 @@ public class RoomService {
         }
         
         return state;
+    }
+    
+    /**
+     * Find which room a player is in
+     * @param playerId the player ID to search for
+     * @return room code if found, null otherwise
+     */
+    public String getPlayerRoom(String playerId) {
+        if (playerId == null) {
+            return null;
+        }
+        
+        for (Room room : rooms.values()) {
+            if (room.getPlayers().stream().anyMatch(p -> p.getId().equals(playerId))) {
+                return room.getRoomCode();
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Get all players in a room
+     * @param roomCode the room code
+     * @return list of player IDs
+     */
+    public List<String> getPlayersInRoom(String roomCode) {
+        Room room = rooms.get(roomCode);
+        if (room == null) {
+            return List.of();
+        }
+        
+        return room.getPlayers().stream()
+            .map(Player::getId)
+            .collect(Collectors.toList());
     }
 }

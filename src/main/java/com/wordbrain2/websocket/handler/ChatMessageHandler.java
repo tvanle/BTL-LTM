@@ -35,7 +35,9 @@ public class ChatMessageHandler {
             return;
         }
         
-        if (!connectionManager.isPlayerInRoom(playerId, roomCode)) {
+        // Check if player is in the room using RoomService
+        String playerRoom = roomService.getPlayerRoom(playerId);
+        if (playerRoom == null || !playerRoom.equals(roomCode)) {
             sendErrorMessage(session, "Player not in room");
             return;
         }
@@ -86,7 +88,7 @@ public class ChatMessageHandler {
     }
     
     private void broadcastToRoom(Room room, BaseMessage message) {
-        connectionManager.broadcastToRoom(room.getCode(), message);
+//        connectionManager.broadcastToRoom(room.getCode(), message);
     }
     
     private void sendErrorMessage(WebSocketSession session, String error) {
