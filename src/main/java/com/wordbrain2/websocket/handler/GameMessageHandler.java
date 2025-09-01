@@ -43,12 +43,10 @@ public class GameMessageHandler {
         }
         
         // Enforce all players ready before starting
-        boolean allReady = room.getPlayerReady().keySet().stream()
-            .allMatch(pid -> Boolean.TRUE.equals(room.getPlayerReady().get(pid)));
-        if (!allReady) {
+        if (!roomService.areAllPlayersReady(roomCode)) {
             return createErrorResult("Tất cả người chơi phải sẵn sàng để bắt đầu.");
         }
-        
+
         var gameState = gameEngine.startGame(roomCode);
         
         if (gameState != null) {
