@@ -66,8 +66,11 @@ public class RoomMessageHandler {
             return createErrorResult("Invalid player or room");
         }
         
-        // Only need to call RoomService, it handles everything
+        // Remove player from room
         roomService.removePlayer(roomCode, playerId);
+        
+        // IMPORTANT: Clear the session-player mapping so they can join again with new ID
+        connectionManager.unregisterPlayer(session.getId());
         
         return Map.of(
             "success", true,
