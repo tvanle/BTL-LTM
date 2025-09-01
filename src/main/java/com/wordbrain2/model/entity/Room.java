@@ -83,14 +83,8 @@ public class Room {
     public void setPlayerReady(String playerId, boolean ready) {
         playerReady.put(playerId, ready);
         updateActivity();
-        checkAllReady();
     }
     
-    private void checkAllReady() {
-        if (players.size() >= 2 && playerReady.values().stream().allMatch(ready -> ready)) {
-            this.status = RoomStatus.READY;
-        }
-    }
     
     public void updateActivity() {
         this.lastActivityAt = LocalDateTime.now();
