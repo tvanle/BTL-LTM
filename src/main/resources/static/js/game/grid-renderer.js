@@ -117,28 +117,8 @@ class GridRenderer {
     }
     
     drawPath() {
-        if (this.selectedPath.length < 2) return;
-        
-        this.ctx.strokeStyle = '#3498db';
-        this.ctx.lineWidth = 4;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
-        
-        this.ctx.beginPath();
-        
-        for (let i = 0; i < this.selectedPath.length; i++) {
-            const cell = this.selectedPath[i];
-            const x = this.offsetX + cell.col * this.cellSize + this.cellSize / 2;
-            const y = this.offsetY + cell.row * this.cellSize + this.cellSize / 2;
-            
-            if (i === 0) {
-                this.ctx.moveTo(x, y);
-            } else {
-                this.ctx.lineTo(x, y);
-            }
-        }
-        
-        this.ctx.stroke();
+        // No longer draw lines between cells
+        // Selection is now shown only by highlighting cells
     }
     
     handleClick(e) {
@@ -162,14 +142,11 @@ class GridRenderer {
                 this.render();
             }
         }
-        // Add cell to path if adjacent to last selected cell
+        // Add cell to path
         else {
-            const lastCell = this.selectedPath[this.selectedPath.length - 1];
-            if (this.isAdjacent(lastCell, cell)) {
-                this.selectedPath.push(cell);
-                this.updateCurrentWord();
-                this.render();
-            }
+            this.selectedPath.push(cell);
+            this.updateCurrentWord();
+            this.render();
         }
     }
     
@@ -197,12 +174,10 @@ class GridRenderer {
                 this.render();
             }
         } else {
-            const lastCell = this.selectedPath[this.selectedPath.length - 1];
-            if (this.isAdjacent(lastCell, cell)) {
-                this.selectedPath.push(cell);
-                this.updateCurrentWord();
-                this.render();
-            }
+            // Add cell to path (no adjacency check needed)
+            this.selectedPath.push(cell);
+            this.updateCurrentWord();
+            this.render();
         }
     }
     
@@ -211,10 +186,9 @@ class GridRenderer {
         if (cell && this.isValidCell(cell)) {
             this.canvas.style.cursor = 'pointer';
             
-            // Check if cell is selectable (adjacent to last selected)
+            // Check if cell is selectable (not already in path)
             if (this.selectedPath.length > 0) {
-                const lastCell = this.selectedPath[this.selectedPath.length - 1];
-                if (this.isAdjacent(lastCell, cell) && !this.isInPath(cell.row, cell.col)) {
+                if (!this.isInPath(cell.row, cell.col)) {
                     this.hoveredCell = cell;
                     this.render();
                     return;

@@ -18,7 +18,6 @@ public class PathValidatorService {
         }
         
         return areAllCellsValid(cells, grid) &&
-               areAllCellsAdjacent(cells) &&
                hasNoDuplicates(cells) &&
                isWithinShape(cells, grid.getShape());
     }
@@ -29,7 +28,6 @@ public class PathValidatorService {
         }
         
         return areAllCellsValid(cells, grid) &&
-               areAllCellsAdjacent(cells) &&
                hasNoDuplicates(cells) &&
                isWithinShape(cells, grid.getShape());
     }
