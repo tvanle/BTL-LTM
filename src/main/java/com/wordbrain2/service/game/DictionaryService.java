@@ -22,7 +22,6 @@ public class DictionaryService {
     private final GameConfig gameConfig;
     private final TopicService topicService;
     private final Map<String, Set<String>> topicDictionaries = new HashMap<>();
-    private final Set<String> generalDictionary = new HashSet<>();
     
     public DictionaryService(GameConfig gameConfig, TopicService topicService) {
         this.gameConfig = gameConfig;
@@ -37,33 +36,12 @@ public class DictionaryService {
     }
     
     private void loadDictionaries() {
-        // Load general dictionary
-        loadGeneralDictionary();
-        
         // Load topic-specific dictionaries from files
         loadAllTopicDictionaries();
         
-        log.info("Loaded {} words in general dictionary", generalDictionary.size());
         log.info("Loaded {} topic dictionaries", topicDictionaries.size());
     }
     
-    private void loadGeneralDictionary() {
-        try {
-            ClassPathResource resource = new ClassPathResource("dictionaries/vietnamese.txt");
-            if (resource.exists()) {
-                loadFromResource(resource, generalDictionary);
-            } else {
-                // Try english.txt as fallback
-                resource = new ClassPathResource("dictionaries/english.txt");
-                if (resource.exists()) {
-                    loadFromResource(resource, generalDictionary);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Could not load general dictionary, using defaults", e);
-            loadDefaultWords(generalDictionary);
-        }
-    }
     
     private void loadAllTopicDictionaries() {
         try {
@@ -102,13 +80,6 @@ public class DictionaryService {
         }
     }
     
-    private void loadDefaultWords(Set<String> dictionary) {
-        dictionary.addAll(Arrays.asList(
-            "HELLO", "WORLD", "GAME", "PLAY", "WIN", "LOSE",
-            "WORD", "BRAIN", "PUZZLE", "SOLVE", "THINK", "SMART",
-            "JAVA", "CODE", "WEB", "SOCKET", "SPRING", "BOOT"
-        ));
-    }
     
     
     public boolean isValidWord(String word) {
@@ -117,11 +88,6 @@ public class DictionaryService {
         }
         
         String upperWord = word.toUpperCase();
-        
-        // Check in general dictionary
-        if (generalDictionary.contains(upperWord)) {
-            return true;
-        }
         
         // Check in all topic dictionaries
         return topicDictionaries.values().stream()
@@ -139,15 +105,15 @@ public class DictionaryService {
                 dictionary = topicWords.stream()
                     .map(String::toUpperCase)
                     .collect(Collectors.toSet());
-            } else {
-                // Fall back to general dictionary
-                dictionary = generalDictionary;
+                // Cache for future use
+                topicDictionaries.put(topic, dictionary);
             }
         }
         
-        if (dictionary.isEmpty()) {
-            // Return some default words for testing
-            return Arrays.asList("HELLO", "WORLD", "GAME");
+        if (dictionary == null || dictionary.isEmpty()) {
+            log.error("No words found for topic: {}", topic);
+            // Get default topic words from TopicService
+            return topicService.getDefaultWords();
         }
         
         List<String> validWords = dictionary.stream()
@@ -173,9 +139,14 @@ public class DictionaryService {
                     .collect(Collectors.toSet());
                 // Cache for future use
                 topicDictionaries.put(topic, words);
-            } else {
-                words = generalDictionary;
             }
+        }
+        
+        if (words == null || words.isEmpty()) {
+            // Get default words from TopicService
+            return topicService.getDefaultWords().stream()
+                .map(String::toUpperCase)
+                .collect(Collectors.toSet());
         }
         
         return words;

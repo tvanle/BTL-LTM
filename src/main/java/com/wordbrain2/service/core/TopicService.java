@@ -178,6 +178,18 @@ public class TopicService {
         return topicWords.getOrDefault(topicId, Collections.emptyList());
     }
     
+    public List<String> getDefaultWords() {
+        // Return default words from general topic or first available topic
+        if (topicWords.containsKey("general")) {
+            return topicWords.get("general");
+        }
+        
+        // Return first available topic words
+        return topicWords.values().stream()
+            .findFirst()
+            .orElse(Arrays.asList("WORD", "GAME", "PLAY", "FUN", "BRAIN", "PUZZLE"));
+    }
+    
     public Map<String, Object> getStatistics() {
         Map<String, Long> difficultyCount = topics.values().stream()
             .filter(Topic::isActive)
