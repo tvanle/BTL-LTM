@@ -145,8 +145,9 @@ public class GameEngine {
         Grid grid = level.getGrid();
         
         // Validate the word
-        boolean isValid = wordValidator.validateWord(word, path, grid);
-        boolean inDictionary = dictionaryService.isValidWord(word);
+        String topic = room.getTopic();
+        boolean isValid = wordValidator.validateWord(word, path, grid, topic);
+        boolean inDictionary = dictionaryService.isValidWord(word, topic);
         
         Map<String, Object> result = new HashMap<>();
         
@@ -221,8 +222,9 @@ public class GameEngine {
             .anyMatch(target -> target == word.length() && !level.isWordCompleted(word));
         
         // Validate the word
-        boolean isValid = wordValidator.validateWord(word, path, grid);
-        boolean inDictionary = dictionaryService.isValidWord(word);
+        String topic = room.getTopic();
+        boolean isValid = wordValidator.validateWord(word, path, grid, topic);
+        boolean inDictionary = dictionaryService.isValidWord(word, topic);
         
         Map<String, Object> result = new HashMap<>();
         

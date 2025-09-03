@@ -178,16 +178,12 @@ public class TopicService {
         return topicWords.getOrDefault(topicId, Collections.emptyList());
     }
     
-    public List<String> getDefaultWords() {
-        // Return default words from general topic or first available topic
-        if (topicWords.containsKey("general")) {
-            return topicWords.get("general");
-        }
-        
-        // Return first available topic words
+    public Set<String> getAllWords() {
+        // Return all words from all topics combined
         return topicWords.values().stream()
-            .findFirst()
-            .orElse(Arrays.asList("WORD", "GAME", "PLAY", "FUN", "BRAIN", "PUZZLE"));
+            .flatMap(List::stream)
+            .map(String::toUpperCase)
+            .collect(Collectors.toSet());
     }
     
     public Map<String, Object> getStatistics() {

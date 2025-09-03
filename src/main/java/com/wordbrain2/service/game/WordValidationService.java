@@ -17,7 +17,7 @@ public class WordValidationService {
         this.dictionaryService = dictionaryService;
     }
     
-    public boolean validateWord(String word, List<Cell> path, Grid grid) {
+    public boolean validateWord(String word, List<Cell> path, Grid grid, String topic) {
         if (word == null || path == null || path.isEmpty()) {
             return false;
         }
@@ -38,8 +38,8 @@ public class WordValidationService {
             return false;
         }
         
-        // Check if word exists in dictionary
-        return dictionaryService.isValidWord(word);
+        // Check if word exists in topic dictionary
+        return dictionaryService.isValidWord(word, topic);
     }
     
     public boolean coversShape(List<Cell> path, Grid grid) {
