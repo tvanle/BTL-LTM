@@ -4,7 +4,10 @@ class GameController {
         this.currentLevel = null;
         this.gridData = null;
         this.timer = null;
+        this.gridRenderer = null;
         this.boosters = this.initializeBoosters();
+        this.wordTargets = [];
+        this.completedWords = [];
     }
     
     initializeBoosters() {
@@ -19,9 +22,21 @@ class GameController {
         };
     }
     
+    setGridRenderer(renderer) {
+        this.gridRenderer = renderer;
+    }
+    
     loadLevel(levelData) {
         this.currentLevel = levelData;
         this.gridData = levelData.grid;
+        this.wordTargets = levelData.wordTargets || []; // Array of word lengths to find
+        this.completedWords = [];
+        
+        // Update grid renderer with new level data
+        if (this.gridRenderer) {
+            this.gridRenderer.setGrid(this.gridData);
+            this.gridRenderer.setWordTargets(this.wordTargets);
+        }
         
         // Initialize booster buttons
         this.setupBoosterButtons();
@@ -69,6 +84,88 @@ class GameController {
             
             this.boosters[type].used++;
             this.setupBoosterButtons();
+        }
+    }
+    
+    // Called when word is submitted
+    submitWord() {
+        if (!this.gridRenderer) return;
+        
+        const word = this.gridRenderer.getSelectedWord();
+        const path = this.gridRenderer.selectedPath;
+        
+        if (word.length > 0) {
+            window.websocketClient.send({
+                type: 'SUBMIT_WORD',
+                data: {
+                    word: word,
+                    path: path.map(cell => ({ row: cell.row, col: cell.col }))
+                }
+            });
+        }
+    }
+    
+    // Called when word is validated by server
+    onWordValidated(result) {
+        if (result.valid) {
+            // Trigger falling animation
+            this.gridRenderer.removeWord();
+            this.completedWords.push(result.word);
+            
+            // Update score
+            this.updateScore(result.points);
+            
+            // Check if level is complete
+            this.checkLevelCompletion();
+        } else {
+            // Show error feedback
+            this.showInvalidWordFeedback();
+            this.gridRenderer.clearSelection();
+        }
+    }
+    
+    // Called after animation completes
+    onWordComplete() {
+        // Request updated grid from server
+        window.websocketClient.send({
+            type: 'REQUEST_GRID_UPDATE',
+            data: {}
+        });
+    }
+    
+    // Update grid with new state from server
+    updateGrid(newGridData) {
+        this.gridData = newGridData;
+        if (this.gridRenderer) {
+            this.gridRenderer.setGrid(this.gridData);
+        }
+    }
+    
+    updateScore(points) {
+        const scoreElement = document.getElementById('player-score');
+        if (scoreElement) {
+            const currentScore = parseInt(scoreElement.textContent) || 0;
+            scoreElement.textContent = currentScore + points;
+        }
+    }
+    
+    showInvalidWordFeedback() {
+        const wordDisplay = document.getElementById('current-word');
+        if (wordDisplay) {
+            wordDisplay.style.color = 'red';
+            setTimeout(() => {
+                wordDisplay.style.color = '';
+            }, 500);
+        }
+    }
+    
+    checkLevelCompletion() {
+        // Check if all word targets have been found
+        if (this.completedWords.length === this.wordTargets.length) {
+            window.websocketClient.send({
+                type: 'LEVEL_COMPLETE',
+                data: {}
+            });
         }
     }
 }

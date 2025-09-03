@@ -298,23 +298,9 @@ class App {
     }
     
     submitWord() {
-        if (window.gridRenderer && window.gridRenderer.selectedPath && window.gridRenderer.selectedPath.length > 0) {
-            const word = window.gridRenderer.getSelectedWord();
-            const path = window.gridRenderer.selectedPath;
-            
-            window.websocketClient.send({
-                type: 'SUBMIT_WORD',
-                data: {
-                    word: word,
-                    path: path.map(cell => ({
-                        row: cell.row,
-                        col: cell.col,
-                        char: cell.character
-                    }))
-                }
-            });
-            
-            window.gridRenderer.clearSelection();
+        // Use game controller's submit method
+        if (window.gameController) {
+            window.gameController.submitWord();
         }
     }
     
@@ -423,9 +409,11 @@ class App {
             window.gridRenderer = new GridRenderer(canvas);
         }
         
+        // Connect game controller with grid renderer
+        window.gameController.setGridRenderer(window.gridRenderer);
+        
         // Load level data
         window.gameController.loadLevel(levelData);
-        window.gridRenderer.setGrid(levelData.grid);
         
         // Update UI
         const currentLevelEl = document.getElementById('current-level');

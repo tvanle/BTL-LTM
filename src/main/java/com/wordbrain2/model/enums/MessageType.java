@@ -18,6 +18,8 @@ public enum MessageType {
     SUBMIT_WORD,
     USE_BOOSTER,
     REQUEST_HINT,
+    REQUEST_GRID_UPDATE,
+    LEVEL_COMPLETE,
     
     // Server Responses
     CONNECTION_SUCCESS,
@@ -30,6 +32,7 @@ public enum MessageType {
     BOOSTER_APPLIED,
     EFFECT_RECEIVED,
     HINT_RESPONSE,
+    GRID_UPDATE,
     
     // Real-time Updates
     LEADERBOARD_UPDATE,

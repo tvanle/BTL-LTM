@@ -11,6 +11,8 @@ public class Level {
     private Grid grid;
     private int duration; // in seconds
     private List<String> targetWords;
+    private List<Integer> wordTargets; // Word length targets (e.g., [3, 4, 5])
+    private List<String> completedWords;
     private int targetWordCount;
     private boolean completed;
     
@@ -18,6 +20,8 @@ public class Level {
         this.levelNumber = levelNumber;
         this.duration = 30; // default 30 seconds
         this.targetWords = new ArrayList<>();
+        this.wordTargets = new ArrayList<>();
+        this.completedWords = new ArrayList<>();
         this.targetWordCount = calculateTargetWordCount(levelNumber);
         this.completed = false;
     }
@@ -35,5 +39,28 @@ public class Level {
     
     public void complete() {
         this.completed = true;
+    }
+    
+    public void addCompletedWord(String word) {
+        if (!completedWords.contains(word)) {
+            completedWords.add(word);
+        }
+    }
+    
+    public boolean isWordCompleted(String word) {
+        return completedWords.contains(word);
+    }
+    
+    public boolean isComplete() {
+        // Level is complete when all word targets are found
+        return completedWords.size() >= wordTargets.size();
+    }
+    
+    public List<Integer> getRemainingTargets() {
+        List<Integer> remaining = new ArrayList<>(wordTargets);
+        for (String completed : completedWords) {
+            remaining.remove(Integer.valueOf(completed.length()));
+        }
+        return remaining;
     }
 }

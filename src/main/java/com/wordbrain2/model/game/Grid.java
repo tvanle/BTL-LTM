@@ -123,4 +123,75 @@ public class Grid {
         int colDiff = Math.abs(c1.getCol() - c2.getCol());
         return rowDiff <= 1 && colDiff <= 1 && (rowDiff + colDiff) > 0;
     }
+    
+    // Remove word and apply gravity effect
+    public void removeWordAndApplyGravity(List<Cell> path) {
+        // First, clear the cells in the path
+        for (Cell cell : path) {
+            cells[cell.getRow()][cell.getCol()].setCharacter('\0');
+            cells[cell.getRow()][cell.getCol()].setActive(false);
+        }
+        
+        // Apply gravity effect - cells fall down to fill empty spaces
+        applyGravity();
+    }
+    
+    private void applyGravity() {
+        // Process each column from bottom to top
+        for (int col = 0; col < cols; col++) {
+            // Find all non-empty cells in this column
+            List<Character> activeCells = new ArrayList<>();
+            
+            for (int row = rows - 1; row >= 0; row--) {
+                if (cells[row][col].isActive() && cells[row][col].getCharacter() != '\0') {
+                    activeCells.add(cells[row][col].getCharacter());
+                }
+            }
+            
+            // Clear the column
+            for (int row = 0; row < rows; row++) {
+                if (shape.isActive(row, col)) {
+                    cells[row][col].setCharacter('\0');
+                    cells[row][col].setActive(false);
+                }
+            }
+            
+            // Place cells back from bottom
+            int activeIndex = 0;
+            for (int row = rows - 1; row >= 0 && activeIndex < activeCells.size(); row--) {
+                if (shape.isActive(row, col)) {
+                    cells[row][col].setCharacter(activeCells.get(activeIndex));
+                    cells[row][col].setActive(true);
+                    activeIndex++;
+                }
+            }
+        }
+    }
+    
+    // Get grid state as 2D character array for frontend
+    public Character[][] getGridState() {
+        Character[][] state = new Character[rows][cols];
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                if (cells[i][j].isActive() && cells[i][j].getCharacter() != '\0') {
+                    state[i][j] = cells[i][j].getCharacter();
+                } else {
+                    state[i][j] = null;
+                }
+            }
+        }
+        return state;
+    }
+    
+    // Check if grid is empty (level complete)
+    public boolean isEmpty() {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                if (cells[i][j].isActive() && cells[i][j].getCharacter() != '\0') {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }

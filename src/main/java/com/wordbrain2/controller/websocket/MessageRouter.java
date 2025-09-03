@@ -147,11 +147,29 @@ public class MessageRouter {
                         
                         if (correct) {
                             sendMessage(session, MessageType.WORD_ACCEPTED, result);
+                            
+                            // Broadcast grid update to all players if grid was updated
+                            if (Boolean.TRUE.equals(result.get("gridUpdated"))) {
+                                var gridUpdate = gameEngine.getUpdatedGrid(roomCode);
+                                if (gridUpdate != null) {
+                                    broadcastToRoom(roomCode, MessageType.GRID_UPDATE, gridUpdate);
+                                }
+                            }
+                            
+                            // Broadcast score update
                             broadcastToRoom(roomCode, MessageType.OPPONENT_SCORED, Map.of(
                                 "playerId", playerId,
                                 "points", result.get("points"),
                                 "word", result.get("word")
                             ), session.getId());
+                            
+                            // Check if level is complete
+                            if (Boolean.TRUE.equals(result.get("levelComplete"))) {
+                                broadcastToRoom(roomCode, MessageType.LEVEL_END, Map.of(
+                                    "message", "Level completed by " + playerId,
+                                    "nextLevel", true
+                                ));
+                            }
                         } else {
                             sendMessage(session, MessageType.WORD_REJECTED, result);
                         }
@@ -186,6 +204,25 @@ public class MessageRouter {
                     if (result != null) {
                         sendMessage(session, MessageType.HINT_RESPONSE, result);
                     }
+                    break;
+                    
+                case REQUEST_GRID_UPDATE:
+                    String playerId2 = roomMessageHandler.getPlayerIdForSession(session.getId());
+                    String roomCode2 = roomMessageHandler.getRoomForPlayer(playerId2);
+                    var gridUpdate = gameEngine.getUpdatedGrid(roomCode2);
+                    if (gridUpdate != null) {
+                        sendMessage(session, MessageType.GRID_UPDATE, gridUpdate);
+                    }
+                    break;
+                    
+                case LEVEL_COMPLETE:
+                    // Handle level completion
+                    String playerId3 = roomMessageHandler.getPlayerIdForSession(session.getId());
+                    String roomCode3 = roomMessageHandler.getRoomForPlayer(playerId3);
+                    broadcastToRoom(roomCode3, MessageType.LEVEL_END, Map.of(
+                        "message", "Level completed!",
+                        "nextLevel", true
+                    ));
                     break;
                     
             }

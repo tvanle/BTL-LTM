@@ -1,7 +1,14 @@
 # WordBrain2 - Multiplayer Word Puzzle Game
 
 ## 🎮 Game Overview
-**WordBrain2** là game ghép chữ real-time multiplayer theo phong cách Quizizz. Người chơi kéo-thả hoặc chọn ký tự trong grid để tạo từ có nghĩa, thi đua tốc độ và độ chính xác với nhiều người chơi khác trong cùng phòng.
+**WordBrain2** là game ghép chữ real-time multiplayer theo phong cách Quizizz. Người chơi click lần lượt các ký tự liền kề trong grid để tạo từ có nghĩa theo kích thước cho trước, thi đua tốc độ và độ chính xác với nhiều người chơi khác trong cùng phòng.
+
+### Gameplay Mechanics
+- **Click Selection**: Người chơi click lần lượt các ô liền kề (ngang, dọc, chéo) để tạo từ
+- **Word Targets**: Mỗi level có danh sách từ với kích thước cụ thể cần tìm (ví dụ: 4 chữ, 5 chữ)
+- **Falling Effect**: Khi từ được xóa, các ô phía trên sẽ rơi xuống lấp đầy khoảng trống
+- **Level Progression**: Hoàn thành tất cả từ trong level để chuyển sang level tiếp theo
+- **Adjacency Rule**: Chỉ có thể chọn các ô liền kề với ô cuối cùng đã chọn
 
 ## 🏗️ System Architecture
 
@@ -218,11 +225,13 @@ wordbrain2-multiplayer/
 - Admin starts game when ready
 
 ### 2. Gameplay Message Flow
-- Player submits word via WebSocket
-- Server validates (dictionary, path, shape)
-- Points calculated and broadcast
+- Player clicks cells to select word path
+- Submit word via WebSocket with path coordinates
+- Server validates (dictionary, path, adjacency, word length)
+- If valid: remove cells, apply gravity, calculate points
+- Broadcast updated grid state to all players
 - Real-time leaderboard updates
-- Booster effects applied and synchronized
+- Check level completion when all target words found
 
 ### 3. Level Progression Flow
 - Level ending countdown (10s)
@@ -241,8 +250,10 @@ wordbrain2-multiplayer/
 ### Grid & Shape Model
 - Grid dimensions and cell array
 - Shape mask for active areas
-- Valid word solutions
-- Cell count tracking
+- Valid word solutions with specific lengths
+- Cell gravity system for falling effect
+- Cell adjacency validation
+- Dynamic grid state after word removal
 
 ### Submission & Scoring
 - Player ID, cell path, word
@@ -342,7 +353,9 @@ management.endpoint.health.show-details=always
 
 ### Core Gameplay
 - Real-time multiplayer word finding
-- Drag-and-drop or click selection
+- Click-based cell selection (lần lượt chọn ô liền kề)
+- Word targets with specific lengths per level
+- Gravity effect when words are cleared
 - Shape-based grid areas
 - Level progression system
 - Timer synchronization

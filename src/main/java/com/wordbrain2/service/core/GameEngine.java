@@ -94,7 +94,7 @@ public class GameEngine {
         Grid grid = gridGenerator.generateGrid(gridSize, gridSize, levelNumber);
         level.setGrid(grid);
         
-        // Generate words for the grid
+        // Generate words for the grid with varying lengths
         List<String> words = dictionaryService.getRandomWords(
             room.getTopic(), 
             level.getTargetWordCount(),
@@ -104,12 +104,32 @@ public class GameEngine {
         grid.fillWithLetters(words);
         level.setTargetWords(words);
         
+        // Generate word targets (lengths of words to find)
+        List<Integer> wordTargets = new ArrayList<>();
+        if (levelNumber <= 3) {
+            // Easy levels: 3-4 letter words
+            wordTargets.add(3);
+            if (levelNumber > 1) wordTargets.add(4);
+            if (levelNumber > 2) wordTargets.add(4);
+        } else if (levelNumber <= 6) {
+            // Medium levels: 4-5 letter words
+            wordTargets.add(4);
+            wordTargets.add(5);
+            if (levelNumber > 4) wordTargets.add(5);
+        } else {
+            // Hard levels: 5-7 letter words
+            wordTargets.add(5);
+            wordTargets.add(6);
+            if (levelNumber > 8) wordTargets.add(7);
+        }
+        level.setWordTargets(wordTargets);
+        
         Map<String, Object> result = new HashMap<>();
         result.put("level", levelNumber);
         result.put("grid", convertGridToMap(grid));
         result.put("duration", level.getDuration());
         result.put("serverTime", System.currentTimeMillis());
-        result.put("targetWords", level.getTargetWordCount());
+        result.put("wordTargets", wordTargets); // Send word length targets
         return result;
     }
     
@@ -196,13 +216,17 @@ public class GameEngine {
             })
             .collect(Collectors.toList());
         
+        // Check if word length matches any target
+        boolean matchesTarget = level.getWordTargets().stream()
+            .anyMatch(target -> target == word.length() && !level.isWordCompleted(word));
+        
         // Validate the word
         boolean isValid = wordValidator.validateWord(word, path, grid);
         boolean inDictionary = dictionaryService.isValidWord(word);
         
         Map<String, Object> result = new HashMap<>();
         
-        if (isValid && inDictionary) {
+        if (isValid && inDictionary && matchesTarget) {
             // Calculate score
             long timeRemaining = calculateTimeRemaining(session);
             double speedFactor = calculateSpeedFactor(timeRemaining, level.getDuration());
@@ -226,10 +250,24 @@ public class GameEngine {
             player.incrementStreak();
             session.updatePlayerScore(playerId, points);
             
+            // Remove word from grid and apply gravity
+            grid.removeWordAndApplyGravity(path);
+            
+            // Mark word as completed
+            level.addCompletedWord(word);
+            
             result.put("correct", true);
+            result.put("valid", true);
             result.put("word", word);
             result.put("points", points);
             result.put("streak", player.getCurrentStreak());
+            result.put("gridUpdated", true);
+            
+            // Check if level is complete
+            if (level.isComplete()) {
+                result.put("levelComplete", true);
+            }
+            
             return result;
         } else {
             // Wrong answer
@@ -242,12 +280,39 @@ public class GameEngine {
                 playerToReset.resetStreak();
             }
             
+            String reason = !inDictionary ? "Not in dictionary" : 
+                           !isValid ? "Invalid path" : 
+                           !matchesTarget ? "Word length doesn't match target" : "Unknown error";
+            
             return Map.of(
                 "correct", false,
+                "valid", false,
                 "word", word,
-                "reason", !inDictionary ? "Not in dictionary" : "Invalid path"
+                "reason", reason
             );
         }
+    }
+    
+    public Map<String, Object> getUpdatedGrid(String roomCode) {
+        Room room = roomService.getRoom(roomCode);
+        if (room == null || room.getGameSession() == null) {
+            return null;
+        }
+        
+        GameSession session = room.getGameSession();
+        Level level = session.getCurrentLevel();
+        if (level == null || level.getGrid() == null) {
+            return null;
+        }
+        
+        Grid grid = level.getGrid();
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("grid", convertGridToMap(grid));
+        result.put("isEmpty", grid.isEmpty());
+        result.put("remainingTargets", level.getRemainingTargets());
+        
+        return result;
     }
     
     public Map<String, Object> useBooster(String roomCode, String playerId, Object data) {

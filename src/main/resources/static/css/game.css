@@ -256,6 +256,50 @@
     justify-content: center;
 }
 
+/* Word targets panel */
+.word-targets-panel {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    margin-bottom: 15px;
+}
+
+.word-targets-panel h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    text-align: center;
+}
+
+#word-targets {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.word-target {
+    background: #ecf0f1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 2px solid #bdc3c7;
+    text-align: center;
+    font-weight: bold;
+    color: #2c3e50;
+    transition: all 0.3s ease;
+}
+
+.word-target.completed {
+    background: #27ae60;
+    color: white;
+    border-color: #229954;
+    text-decoration: line-through;
+}
+
+.word-target.active {
+    border-color: #3498db;
+    background: #ebf5fb;
+}
+
 /* Found words */
 .found-words {
     background: rgba(255, 255, 255, 0.95);
