@@ -50,8 +50,7 @@ public class GameMessageHandler {
         var gameState = gameEngine.startGame(roomCode);
         
         if (gameState != null) {
-            // Schedule level start after countdown
-            scheduleGameStart(roomCode);
+            // MessageRouter will handle scheduling
             return Map.of(
                 "success", true,
                 "gameState", gameState,
@@ -91,9 +90,7 @@ public class GameMessageHandler {
         // Get hint from game engine
         Map<?, ?> data = (Map<?, ?>) message.getData();
         int hintLevel = getInt(data, "hintLevel", 1);
-        
-        // For now, just return a basic hint
-        // In a real implementation, this would check the current game state
+
         String hint = generateHint(null, hintLevel);
         
         return Map.of(
@@ -101,20 +98,6 @@ public class GameMessageHandler {
             "hint", hint,
             "hintLevel", hintLevel
         );
-    }
-    
-    private void scheduleGameStart(String roomCode) {
-        new Thread(() -> {
-            try {
-                Thread.sleep(5000);
-                var levelData = gameEngine.startLevel(roomCode, 1);
-                // Level data will be broadcast by GameWebSocketHandler
-            } catch (InterruptedException e) {
-                log.error("Game start interrupted", e);
-            } catch (Exception ex) {
-                log.error("Failed to start level", ex);
-            }
-        }).start();
     }
     
     private String generateHint(Map<String, Object> gameState, int level) {
