@@ -26,7 +26,7 @@ public class TopicService {
     public void loadTopics() {
         try {
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-            Resource[] resources = resolver.getResources("classpath:dictionaries/topics/*.txt");
+            Resource[] resources = resolver.getResources("classpath:topics/*.txt");
             
             for (Resource resource : resources) {
                 String filename = resource.getFilename();
