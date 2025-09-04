@@ -44,13 +44,6 @@ public class TimerService {
         }
     }
     
-    public void resumeTimer(String roomCode, Runnable onTick, Runnable onComplete) {
-        Integer remaining = roomTimeRemaining.get(roomCode);
-        if (remaining != null && remaining > 0) {
-            startTimer(roomCode, remaining, onTick, onComplete);
-        }
-    }
-    
     public void addTime(String roomCode, int seconds) {
         Integer current = roomTimeRemaining.get(roomCode);
         if (current != null) {
