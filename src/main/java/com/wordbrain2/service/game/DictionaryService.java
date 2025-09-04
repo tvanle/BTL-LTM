@@ -69,4 +69,53 @@ public class DictionaryService {
             .map(String::toUpperCase)
             .collect(Collectors.toSet());
     }
+    
+    public String getRandomWordByLength(String topic, int length) {
+        List<String> topicWords = topicService.getWordsForTopic(topic);
+        
+        if (topicWords.isEmpty()) {
+            log.warn("No words found for topic: {}, using all topics", topic);
+            topicWords = new ArrayList<>(topicService.getAllWords());
+        }
+        
+        // Filter by exact length
+        List<String> wordsOfLength = topicWords.stream()
+            .map(String::toUpperCase)
+            .filter(word -> word.length() == length)
+            .collect(Collectors.toList());
+        
+        if (wordsOfLength.isEmpty()) {
+            log.warn("No words of length {} found for topic: {}", length, topic);
+            // Try to find any word close to the target length
+            wordsOfLength = topicWords.stream()
+                .map(String::toUpperCase)
+                .filter(word -> Math.abs(word.length() - length) <= 1)
+                .collect(Collectors.toList());
+        }
+        
+        if (!wordsOfLength.isEmpty()) {
+            Random random = new Random();
+            return wordsOfLength.get(random.nextInt(wordsOfLength.size()));
+        }
+        
+        // Fallback: return a simple word
+        return generateFallbackWord(length);
+    }
+    
+    private String generateFallbackWord(int length) {
+        String[] fallbacks = {"CAT", "DOG", "BIRD", "FISH", "TREE", "HOUSE", "WATER", "FIRE"};
+        for (String word : fallbacks) {
+            if (word.length() == length) {
+                return word;
+            }
+        }
+        // Generate a simple word with required length
+        StringBuilder sb = new StringBuilder();
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        Random random = new Random();
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return sb.toString();
+    }
 }

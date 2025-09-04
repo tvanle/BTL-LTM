@@ -94,35 +94,22 @@ public class GameEngine {
         Grid grid = gridGenerator.generateGrid(gridSize, gridSize, levelNumber);
         level.setGrid(grid);
         
-        // Generate words for the grid with varying lengths
-        List<String> words = dictionaryService.getRandomWords(
-            room.getTopic(), 
-            level.getTargetWordCount(),
-            grid.getTotalCells()
-        );
-        
-        grid.fillWithLetters(words);
-        level.setTargetWords(words);
-        
-        // Generate word targets (lengths of words to find)
-        List<Integer> wordTargets = new ArrayList<>();
-        if (levelNumber <= 3) {
-            // Easy levels: 3-4 letter words
-            wordTargets.add(3);
-            if (levelNumber > 1) wordTargets.add(4);
-            if (levelNumber > 2) wordTargets.add(4);
-        } else if (levelNumber <= 6) {
-            // Medium levels: 4-5 letter words
-            wordTargets.add(4);
-            wordTargets.add(5);
-            if (levelNumber > 4) wordTargets.add(5);
-        } else {
-            // Hard levels: 5-7 letter words
-            wordTargets.add(5);
-            wordTargets.add(6);
-            if (levelNumber > 8) wordTargets.add(7);
-        }
+        // Generate word targets first (what words player needs to find)
+        List<Integer> wordTargets = generateWordTargets(levelNumber, grid.getTotalCells());
         level.setWordTargets(wordTargets);
+        
+        // Get words matching the target lengths from dictionary
+        List<String> targetWords = new ArrayList<>();
+        for (Integer targetLength : wordTargets) {
+            String word = dictionaryService.getRandomWordByLength(room.getTopic(), targetLength);
+            if (word != null) {
+                targetWords.add(word.toUpperCase());
+            }
+        }
+        
+        // Fill grid with scrambled letters from target words
+        grid.fillWithLetters(targetWords);
+        level.setTargetWords(targetWords);
         
         Map<String, Object> result = new HashMap<>();
         result.put("level", levelNumber);
@@ -383,6 +370,50 @@ public class GameEngine {
         result.put("status", "ENDED");
         result.put("roomCode", roomCode);
         return result;
+    }
+    
+    private List<Integer> generateWordTargets(int levelNumber, int totalCells) {
+        List<Integer> targets = new ArrayList<>();
+        
+        // Level 1: 1 word (3-4 letters)
+        if (levelNumber == 1) {
+            targets.add(Math.min(4, totalCells));
+        }
+        // Level 2-3: 2 words
+        else if (levelNumber <= 3) {
+            targets.add(3);
+            targets.add(4);
+        }
+        // Level 4-6: 3 words with increasing length
+        else if (levelNumber <= 6) {
+            targets.add(3);
+            targets.add(4);
+            targets.add(5);
+        }
+        // Level 7-9: 4 words
+        else if (levelNumber <= 9) {
+            targets.add(3);
+            targets.add(4);
+            targets.add(5);
+            targets.add(6);
+        }
+        // Level 10+: 5+ words with varied lengths
+        else {
+            targets.add(4);
+            targets.add(5);
+            targets.add(5);
+            targets.add(6);
+            targets.add(7);
+        }
+        
+        // Ensure total letters don't exceed grid capacity
+        int totalLetters = targets.stream().mapToInt(Integer::intValue).sum();
+        while (totalLetters > totalCells && !targets.isEmpty()) {
+            targets.remove(targets.size() - 1);
+            totalLetters = targets.stream().mapToInt(Integer::intValue).sum();
+        }
+        
+        return targets;
     }
     
     public Map<String, Object> getHint(String roomCode, String playerId) {

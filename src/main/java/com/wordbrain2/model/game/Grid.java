@@ -48,39 +48,41 @@ public class Grid {
     }
     
     public void fillWithLetters(List<String> words) {
-        // This is a simplified version - in production, you'd want more sophisticated letter placement
-        Random random = new Random();
-        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        // WordBrain2 style: combine all word letters and scramble them into the grid
+        StringBuilder allLetters = new StringBuilder();
         
+        // Combine all letters from target words
+        for (String word : words) {
+            allLetters.append(word.toUpperCase());
+        }
+        
+        // Convert to list for shuffling
+        List<Character> letterList = new ArrayList<>();
+        for (char c : allLetters.toString().toCharArray()) {
+            letterList.add(c);
+        }
+        
+        // Shuffle the letters
+        java.util.Collections.shuffle(letterList);
+        
+        // Fill active cells with shuffled letters
+        int letterIndex = 0;
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                if (cells[i][j].isActive()) {
-                    cells[i][j].setCharacter(alphabet.charAt(random.nextInt(26)));
+                if (cells[i][j].isActive() && letterIndex < letterList.size()) {
+                    cells[i][j].setCharacter(letterList.get(letterIndex));
+                    letterIndex++;
                 }
             }
         }
         
-        // Place actual words in the grid (simplified)
-        if (!words.isEmpty()) {
-            placeWord(words.get(0));
+        // Store the solution words
+        this.solutions = new ArrayList<>();
+        for (String word : words) {
+            this.solutions.add(new Word(word.toUpperCase()));
         }
     }
     
-    private void placeWord(String word) {
-        // Simplified word placement - place horizontally if possible
-        if (word.length() <= cols) {
-            int row = new Random().nextInt(rows);
-            int startCol = new Random().nextInt(cols - word.length() + 1);
-            
-            for (int i = 0; i < word.length(); i++) {
-                if (cells[row][startCol + i].isActive()) {
-                    cells[row][startCol + i].setCharacter(word.charAt(i));
-                }
-            }
-            
-            solutions.add(new Word(word, row, startCol, Word.Direction.HORIZONTAL));
-        }
-    }
     
     public Cell getCell(int row, int col) {
         if (row >= 0 && row < rows && col >= 0 && col < cols) {
