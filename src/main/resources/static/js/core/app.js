@@ -11,7 +11,36 @@ class App {
     
     init() {
         this.setupEventListeners();
+        this.loadTopics();
         this.showScreen('menu');
+    }
+    
+    async loadTopics() {
+        try {
+            const response = await fetch('/api/topics');
+            if (response.ok) {
+                const topics = await response.json();
+                const topicSelect = document.getElementById('topic');
+                
+                // Clear existing options except the first placeholder
+                topicSelect.innerHTML = '<option value="">Select Topic</option>';
+                
+                // Add topics from API
+                topics.forEach(topic => {
+                    const option = document.createElement('option');
+                    option.value = topic.id;
+                    option.textContent = `${topic.name} (${topic.difficulty})`;
+                    topicSelect.appendChild(option);
+                });
+                
+                console.log(`Loaded ${topics.length} topics from server`);
+            } else {
+                console.error('Failed to load topics:', response.status);
+            }
+        } catch (error) {
+            console.error('Error loading topics:', error);
+            // Keep hardcoded topics as fallback
+        }
     }
     
     setupEventListeners() {
