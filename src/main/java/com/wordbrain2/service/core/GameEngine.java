@@ -5,11 +5,14 @@ import com.wordbrain2.model.entity.GameSession;
 import com.wordbrain2.model.entity.Player;
 import com.wordbrain2.model.entity.Room;
 import com.wordbrain2.model.enums.GamePhase;
+import com.wordbrain2.model.enums.MessageType;
 import com.wordbrain2.model.enums.SubmissionResult;
 import com.wordbrain2.model.game.*;
+import com.wordbrain2.service.event.EventBusService;
 import com.wordbrain2.service.game.DictionaryService;
 import com.wordbrain2.service.game.GridGeneratorService;
 import com.wordbrain2.service.game.PathValidatorService;
+import com.wordbrain2.service.game.TimerService;
 import com.wordbrain2.service.game.WordValidationService;
 import com.wordbrain2.service.scoring.ScoreCalculator;
 import com.wordbrain2.service.scoring.StatisticsService;
@@ -31,6 +34,8 @@ public class GameEngine {
     private final PathValidatorService pathValidator;
     private final StatisticsService statisticsService;
     private final GameConfig gameConfig;
+    private final TimerService timerService;
+    private final EventBusService eventBusService;
     
     public GameEngine(RoomService roomService, 
                       GridGeneratorService gridGenerator,
@@ -39,7 +44,9 @@ public class GameEngine {
                       ScoreCalculator scoreCalculator,
                       PathValidatorService pathValidator,
                       StatisticsService statisticsService,
-                      GameConfig gameConfig) {
+                      GameConfig gameConfig,
+                      TimerService timerService,
+                      EventBusService eventBusService) {
         this.roomService = roomService;
         this.gridGenerator = gridGenerator;
         this.wordValidator = wordValidator;
@@ -48,6 +55,8 @@ public class GameEngine {
         this.pathValidator = pathValidator;
         this.statisticsService = statisticsService;
         this.gameConfig = gameConfig;
+        this.timerService = timerService;
+        this.eventBusService = eventBusService;
     }
     
     public Map<String, Object> startGame(String roomCode) {
@@ -111,12 +120,26 @@ public class GameEngine {
         grid.fillWithLetters(targetWords);
         level.setTargetWords(targetWords);
         
+        // Create word slots info for UI
+        List<Map<String, Object>> wordSlots = new ArrayList<>();
+        for (int i = 0; i < targetWords.size(); i++) {
+            Map<String, Object> slot = new HashMap<>();
+            slot.put("index", i);
+            slot.put("length", targetWords.get(i).length());
+            slot.put("word", targetWords.get(i)); // For debugging, remove in production
+            slot.put("completed", false);
+            slot.put("active", i == 0); // Only first word is active initially
+            wordSlots.add(slot);
+        }
+        
         Map<String, Object> result = new HashMap<>();
         result.put("level", levelNumber);
         result.put("grid", convertGridToMap(grid));
         result.put("duration", level.getDuration());
         result.put("serverTime", System.currentTimeMillis());
-        result.put("wordTargets", wordTargets); // Send word length targets
+        result.put("wordTargets", wordTargets); // Legacy support
+        result.put("wordSlots", wordSlots); // New ordered word slots
+        result.put("currentWordIndex", 0); // Track which word should be found
         return result;
     }
     
@@ -138,7 +161,17 @@ public class GameEngine {
         
         Map<String, Object> result = new HashMap<>();
         
-        if (isValid && inDictionary) {
+        // Check if word matches current expected word in order for this player
+        List<String> targetWords = level.getTargetWords();
+        int currentIndex = session.getPlayerWordIndex(playerId);
+        boolean isCorrectOrder = false;
+        
+        if (currentIndex < targetWords.size()) {
+            String expectedWord = targetWords.get(currentIndex);
+            isCorrectOrder = expectedWord.equalsIgnoreCase(word);
+        }
+        
+        if (isValid && inDictionary && isCorrectOrder) {
             // Calculate score
             long timeRemaining = calculateTimeRemaining(session);
             double speedFactor = calculateSpeedFactor(timeRemaining, level.getDuration());
@@ -161,9 +194,27 @@ public class GameEngine {
             player.addScore(points);
             player.incrementStreak();
             
+            // Move to next word for this player
+            session.incrementPlayerWordIndex(playerId);
+            session.addCompletedWord(playerId, word);
+            
             result.put("result", SubmissionResult.CORRECT);
             result.put("points", points);
             result.put("word", word);
+            result.put("wordIndex", currentIndex);
+            result.put("nextWordIndex", currentIndex + 1);
+            result.put("wordCompleted", true);
+            result.put("levelCompleted", session.hasPlayerCompletedLevel(playerId));
+            
+            // Check if all players completed the level
+            List<String> playerIds = room.getPlayers().stream()
+                .map(Player::getId)
+                .collect(Collectors.toList());
+            
+            if (session.allPlayersCompletedLevel(playerIds)) {
+                // Trigger level end
+                result.put("allPlayersCompleted", true);
+            }
         } else {
             // Find and update player
             Player playerToReset = room.getPlayers().stream()
@@ -175,7 +226,11 @@ public class GameEngine {
             }
             result.put("result", SubmissionResult.INCORRECT);
             result.put("word", word);
-            result.put("reason", !inDictionary ? "Not in dictionary" : "Invalid path");
+            String reason = !inDictionary ? "Not in dictionary" : 
+                           !isValid ? "Invalid path" : 
+                           "Wrong order - find word #" + (currentIndex + 1) + " first";
+            result.put("reason", reason);
+            result.put("currentWordIndex", currentIndex);
         }
         
         return result;
@@ -353,6 +408,49 @@ public class GameEngine {
         result.put("status", "RESUMED");
         result.put("roomCode", roomCode);
         return result;
+    }
+    
+    public void handleLevelEnd(String roomCode) {
+        Room room = roomService.getRoom(roomCode);
+        if (room == null || room.getGameSession() == null) {
+            return;
+        }
+        
+        GameSession session = room.getGameSession();
+        session.setPhase(GamePhase.LEVEL_END);
+        
+        // Stop the level timer
+        timerService.stopTimer(roomCode + "_level");
+        
+        // Schedule transition to next level after 5 seconds
+        timerService.startTimer(roomCode + "_transition", 5,
+            () -> {}, // No tick action
+            () -> {
+                // Auto transition to next level
+                if (!session.isLastLevel()) {
+                    session.nextLevel();
+                    Map<String, Object> nextLevelData = startLevel(roomCode, session.getCurrentLevelIndex() + 1);
+                    
+                    // Broadcast next level to all players
+                    eventBusService.broadcastToRoom(roomCode, MessageType.LEVEL_START.name(), nextLevelData);
+                } else {
+                    // Game finished
+                    session.endGame();
+                    Map<String, Object> gameEndData = Map.of(
+                        "finalScores", session.getPlayerScores(),
+                        "winner", determineWinner(session.getPlayerScores())
+                    );
+                    eventBusService.broadcastToRoom(roomCode, MessageType.GAME_END.name(), gameEndData);
+                }
+            }
+        );
+    }
+    
+    private String determineWinner(Map<String, Integer> scores) {
+        return scores.entrySet().stream()
+            .max(Map.Entry.comparingByValue())
+            .map(Map.Entry::getKey)
+            .orElse(null);
     }
     
     public Map<String, Object> endGame(String roomCode, String playerId) {

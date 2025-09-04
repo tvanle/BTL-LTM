@@ -269,6 +269,22 @@ class WebSocketClient {
                 currentWordDiv.style.color = '#333';
             }, 1000);
         }
+        
+        // Update word slots if word completed
+        if (data.wordCompleted && window.gameController) {
+            const wordIndex = data.wordIndex;
+            const word = data.word;
+            
+            // Update the slot UI
+            if (window.gameController.wordSlots && window.gameController.wordSlots[wordIndex]) {
+                window.gameController.wordSlots[wordIndex].completed = true;
+                window.gameController.wordSlots[wordIndex].word = word;
+                window.gameController.currentWordIndex = data.nextWordIndex;
+                
+                // Refresh the word slots display
+                window.gameController.setupWordSlots();
+            }
+        }
     }
     
     handleWordRejected(data) {

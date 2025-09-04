@@ -20,6 +20,8 @@ public class GameSession {
     private int currentLevelIndex;
     private List<Level> levels;
     private Map<String, Integer> playerScores;
+    private Map<String, Integer> playerWordIndexes; // Track each player's progress
+    private Map<String, List<String>> playerCompletedWords; // Track completed words per player
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private long levelStartTime;
@@ -31,6 +33,8 @@ public class GameSession {
         this.currentLevelIndex = 0;
         this.levels = new ArrayList<>();
         this.playerScores = new ConcurrentHashMap<>();
+        this.playerWordIndexes = new ConcurrentHashMap<>();
+        this.playerCompletedWords = new ConcurrentHashMap<>();
         
         // Initialize levels
         for (int i = 0; i < levelCount; i++) {
@@ -48,6 +52,9 @@ public class GameSession {
         if (currentLevelIndex < levels.size() - 1) {
             currentLevelIndex++;
             levelStartTime = System.currentTimeMillis();
+            // Reset all players' progress for new level
+            playerWordIndexes.clear();
+            playerCompletedWords.clear();
         } else {
             endGame();
         }
@@ -83,5 +90,31 @@ public class GameSession {
     
     public boolean isActive() {
         return phase == GamePhase.PLAYING || phase == GamePhase.LEVEL_END;
+    }
+    
+    public int getPlayerWordIndex(String playerId) {
+        return playerWordIndexes.getOrDefault(playerId, 0);
+    }
+    
+    public void incrementPlayerWordIndex(String playerId) {
+        playerWordIndexes.put(playerId, playerWordIndexes.getOrDefault(playerId, 0) + 1);
+    }
+    
+    public void addCompletedWord(String playerId, String word) {
+        playerCompletedWords.computeIfAbsent(playerId, k -> new ArrayList<>()).add(word);
+    }
+    
+    public boolean hasPlayerCompletedLevel(String playerId) {
+        Level currentLevel = getCurrentLevel();
+        if (currentLevel == null || currentLevel.getTargetWords() == null) {
+            return false;
+        }
+        
+        List<String> completedWords = playerCompletedWords.getOrDefault(playerId, new ArrayList<>());
+        return completedWords.size() >= currentLevel.getTargetWords().size();
+    }
+    
+    public boolean allPlayersCompletedLevel(List<String> playerIds) {
+        return playerIds.stream().allMatch(this::hasPlayerCompletedLevel);
     }
 }
