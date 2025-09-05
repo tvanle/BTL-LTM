@@ -6,7 +6,6 @@ import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
 
@@ -24,8 +23,8 @@ public class BoosterMessageHandler {
         this.roomService = roomService;
     }
     
-    public Map<String, Object> handleUseBooster(WebSocketSession session, BaseMessage message) {
-        String playerId = connectionManager.getPlayerId(session.getId());
+    public Map<String, Object> handleUseBooster(String sessionId, BaseMessage message) {
+        String playerId = connectionManager.getPlayerId(sessionId);
         String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {

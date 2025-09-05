@@ -12,12 +12,6 @@ import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -47,12 +41,11 @@ public class MessageRouter {
     
     private final Gson gson = new Gson();
     
-    public void routeMessage(WebSocketSession session, TextMessage message) {
+    public void routeTcpMessage(String sessionId, String messageContent) {
         try {
-            String payload = message.getPayload();
-            log.debug("Routing message: {}", payload);
+            log.debug("Routing TCP message from session {}: {}", sessionId, messageContent);
             
-            BaseMessage gameMessage = gson.fromJson(payload, BaseMessage.class);
+            BaseMessage gameMessage = gson.fromJson(messageContent, BaseMessage.class);
             Map<String, Object> result = null;
             MessageType responseType = null;
             
@@ -60,13 +53,13 @@ public class MessageRouter {
             MessageType messageType = gameMessage.getMessageType();
             if (messageType == null) {
                 log.warn("Unknown message type: {}", gameMessage.getType());
-                sendError(session, "Unknown message type: " + gameMessage.getType());
+                sendError(sessionId, "Unknown message type: " + gameMessage.getType());
                 return;
             }
             
             switch (messageType) {
                 case CREATE_ROOM:
-                    result = roomMessageHandler.handleCreateRoom(session, gameMessage);
+                    result = roomMessageHandler.handleCreateRoom(sessionId, gameMessage);
                     responseType = result != null ? MessageType.ROOM_CREATED : null;
                     if (result != null) {
                         String roomCode = (String) result.get("roomCode");
@@ -75,7 +68,7 @@ public class MessageRouter {
                     break;
                     
                 case JOIN_ROOM:
-                    result = roomMessageHandler.handleJoinRoom(session, gameMessage);
+                    result = roomMessageHandler.handleJoinRoom(sessionId, gameMessage);
                     responseType = result != null ? MessageType.ROOM_JOINED : null;
                     if (result != null) {
                         String roomCode = (String) result.get("roomCode");
@@ -86,13 +79,13 @@ public class MessageRouter {
                         broadcastToRoom(roomCode, MessageType.PLAYER_JOINED, Map.of(
                             "playerId", playerId,
                             "playerName", playerName
-                        ), session.getId());
+                        ), sessionId);
                         broadcastRoomState(roomCode);
                     }
                     break;
                     
                 case LEAVE_ROOM:
-                    result = roomMessageHandler.handleLeaveRoom(session, gameMessage);
+                    result = roomMessageHandler.handleLeaveRoom(sessionId, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
                         String roomCode = (String) result.get("roomCode");
                         String playerId = (String) result.get("playerId");
@@ -105,7 +98,7 @@ public class MessageRouter {
                     break;
                     
                 case PLAYER_READY:
-                    result = roomMessageHandler.handlePlayerReady(session, gameMessage);
+                    result = roomMessageHandler.handlePlayerReady(sessionId, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
                         String playerId = (String) result.get("playerId");
                         String roomCode = roomMessageHandler.getRoomForPlayer(playerId);
@@ -120,9 +113,9 @@ public class MessageRouter {
                     break;
                     
                 case START_GAME:
-                    result = gameMessageHandler.handleStartGame(session, gameMessage);
+                    result = gameMessageHandler.handleStartGame(sessionId, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
-                        String playerId = roomMessageHandler.getPlayerIdForSession(session.getId());
+                        String playerId = roomMessageHandler.getPlayerIdForSession(sessionId);
                         String roomCode = roomMessageHandler.getRoomForPlayer(playerId);
                         
                         broadcastToRoom(roomCode, MessageType.GAME_STARTING, Map.of(
@@ -133,20 +126,20 @@ public class MessageRouter {
                         // Schedule actual game start
                         scheduleGameStart(roomCode);
                     } else if (result != null && result.containsKey("error")) {
-                        sendInvalidAction(session, (String) result.get("error"));
+                        sendInvalidAction(sessionId, (String) result.get("error"));
                         return;
                     }
                     break;
                     
                 case SUBMIT_WORD:
-                    result = gameMessageHandler.handleSubmitWord(session, gameMessage);
+                    result = gameMessageHandler.handleSubmitWord(sessionId, gameMessage);
                     if (result != null) {
                         boolean correct = Boolean.TRUE.equals(result.get("correct"));
-                        String playerId = roomMessageHandler.getPlayerIdForSession(session.getId());
+                        String playerId = roomMessageHandler.getPlayerIdForSession(sessionId);
                         String roomCode = roomMessageHandler.getRoomForPlayer(playerId);
                         
                         if (correct) {
-                            sendMessage(session, MessageType.WORD_ACCEPTED, result);
+                            sendMessage(sessionId, MessageType.WORD_ACCEPTED, result);
                             
                             // Broadcast grid update to all players if grid was updated
                             if (Boolean.TRUE.equals(result.get("gridUpdated"))) {
@@ -161,7 +154,7 @@ public class MessageRouter {
                                 "playerId", playerId,
                                 "points", result.get("points"),
                                 "word", result.get("word")
-                            ), session.getId());
+                            ), sessionId);
                             
                             // Check if level is complete
                             if (Boolean.TRUE.equals(result.get("levelComplete"))) {
@@ -171,7 +164,7 @@ public class MessageRouter {
                                 ));
                             }
                         } else {
-                            sendMessage(session, MessageType.WORD_REJECTED, result);
+                            sendMessage(sessionId, MessageType.WORD_REJECTED, result);
                         }
                         
                         // Update leaderboard
@@ -181,43 +174,43 @@ public class MessageRouter {
                     break;
                     
                 case USE_BOOSTER:
-                    result = boosterMessageHandler.handleUseBooster(session, gameMessage);
+                    result = boosterMessageHandler.handleUseBooster(sessionId, gameMessage);
                     if (result != null && Boolean.TRUE.equals(result.get("success"))) {
-                        sendMessage(session, MessageType.BOOSTER_APPLIED, result);
+                        sendMessage(sessionId, MessageType.BOOSTER_APPLIED, result);
                         
                         // If booster affects others, notify them
                         if (Boolean.TRUE.equals(result.get("affectsOthers"))) {
-                            String playerId = roomMessageHandler.getPlayerIdForSession(session.getId());
+                            String playerId = roomMessageHandler.getPlayerIdForSession(sessionId);
                             String roomCode = roomMessageHandler.getRoomForPlayer(playerId);
                             
                             broadcastToRoom(roomCode, MessageType.EFFECT_RECEIVED, Map.of(
                                 "effect", result.get("effectType"),
                                 "duration", result.get("effectDuration"),
                                 "fromPlayer", result.get("fromPlayer")
-                            ), session.getId());
+                            ), sessionId);
                         }
                     }
                     break;
                     
                 case REQUEST_HINT:
-                    result = gameMessageHandler.handleRequestHint(session, gameMessage);
+                    result = gameMessageHandler.handleRequestHint(sessionId, gameMessage);
                     if (result != null) {
-                        sendMessage(session, MessageType.HINT_RESPONSE, result);
+                        sendMessage(sessionId, MessageType.HINT_RESPONSE, result);
                     }
                     break;
                     
                 case REQUEST_GRID_UPDATE:
-                    String playerId2 = roomMessageHandler.getPlayerIdForSession(session.getId());
+                    String playerId2 = roomMessageHandler.getPlayerIdForSession(sessionId);
                     String roomCode2 = roomMessageHandler.getRoomForPlayer(playerId2);
                     var gridUpdate = gameEngine.getUpdatedGrid(roomCode2);
                     if (gridUpdate != null) {
-                        sendMessage(session, MessageType.GRID_UPDATE, gridUpdate);
+                        sendMessage(sessionId, MessageType.GRID_UPDATE, gridUpdate);
                     }
                     break;
                     
                 case LEVEL_COMPLETE:
                     // Handle level completion
-                    String playerId3 = roomMessageHandler.getPlayerIdForSession(session.getId());
+                    String playerId3 = roomMessageHandler.getPlayerIdForSession(sessionId);
                     String roomCode3 = roomMessageHandler.getRoomForPlayer(playerId3);
                     broadcastToRoom(roomCode3, MessageType.LEVEL_END, Map.of(
                         "message", "Level completed!",
@@ -229,14 +222,14 @@ public class MessageRouter {
             
             // Send response if there's an error
             if (result != null && result.containsKey("error") && !Boolean.TRUE.equals(result.get("success"))) {
-                sendError(session, (String) result.get("error"));
+                sendError(sessionId, (String) result.get("error"));
             } else if (result != null && responseType != null) {
-                sendMessage(session, responseType, result);
+                sendMessage(sessionId, responseType, result);
             }
             
         } catch (Exception e) {
             log.error("Error routing message", e);
-            sendError(session, "Error processing message: " + e.getMessage());
+            sendError(sessionId, "Error processing message: " + e.getMessage());
         }
     }
     
@@ -280,16 +273,16 @@ public class MessageRouter {
         }).start();
     }
     
-    private void sendMessage(WebSocketSession session, MessageType type, Object data) {
-        broadcastService.sendMessage(session, type, data);
+    private void sendMessage(String sessionId, MessageType type, Object data) {
+        broadcastService.sendMessageToSession(sessionId, type, data);
     }
     
-    private void sendError(WebSocketSession session, String error) {
-        broadcastService.sendError(session, error);
+    private void sendError(String sessionId, String error) {
+        broadcastService.sendErrorToSession(sessionId, error);
     }
 
-    private void sendInvalidAction(WebSocketSession session, String reason) {
-        broadcastService.sendInvalidAction(session, reason);
+    private void sendInvalidAction(String sessionId, String reason) {
+        broadcastService.sendInvalidActionToSession(sessionId, reason);
     }
     
     private void broadcastToRoom(String roomCode, MessageType type, Object data) {

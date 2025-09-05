@@ -4,8 +4,7 @@ import com.google.gson.Gson;
 import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,15 +21,23 @@ import java.util.stream.Collectors;
 @Component
 public class ConnectionManager {
     
-    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    @Autowired
+    private GameWebSocketHandler gameWebSocketHandler;
+    
+    private final Map<String, Object> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> sessionToPlayer = new ConcurrentHashMap<>();
     private final Map<String, String> playerToSession = new ConcurrentHashMap<>();
     private final Gson gson = new Gson();
     
     // Basic session management
-    public void addSession(String sessionId, WebSocketSession session) {
+    public void addSession(String sessionId, Object session) {
         sessions.put(sessionId, session);
         log.info("Session added: {}", sessionId);
+    }
+    
+    public void addTcpSession(String sessionId, Object tcpHandler) {
+        sessions.put(sessionId, tcpHandler);
+        log.info("TCP Session added: {}", sessionId);
     }
     
     public void removeSession(String sessionId) {
@@ -42,11 +49,11 @@ public class ConnectionManager {
         log.info("Session removed: {}", sessionId);
     }
     
-    public WebSocketSession getSession(String sessionId) {
+    public Object getSession(String sessionId) {
         return sessions.get(sessionId);
     }
     
-    public WebSocketSession getSessionByPlayerId(String playerId) {
+    public Object getSessionByPlayerId(String playerId) {
         if (playerId == null) {
             return null;
         }
@@ -79,25 +86,21 @@ public class ConnectionManager {
     // Room management removed - use RoomService instead
     
     // Message sending
-    public void sendMessage(WebSocketSession session, BaseMessage message) {
-        if (session == null || !session.isOpen()) {
-            log.warn("Cannot send message - session is null or closed");
+    public void sendMessage(String sessionId, BaseMessage message) {
+        if (sessionId == null) {
+            log.warn("Cannot send message - sessionId is null");
             return;
         }
         
-        try {
-            String jsonMessage = gson.toJson(message);
-            session.sendMessage(new TextMessage(jsonMessage));
-            log.debug("Message sent to session {}: {}", session.getId(), message.getType());
-        } catch (IOException e) {
-            log.error("Failed to send message to session {}: {}", session.getId(), e.getMessage());
-        }
+        String jsonMessage = gson.toJson(message);
+        gameWebSocketHandler.sendMessage(sessionId, jsonMessage);
+        log.debug("Message sent to session {}: {}", sessionId, message.getType());
     }
     
     public void sendMessageToPlayer(String playerId, BaseMessage message) {
-        WebSocketSession session = getSessionByPlayerId(playerId);
-        if (session != null) {
-            sendMessage(session, message);
+        String sessionId = playerToSession.get(playerId);
+        if (sessionId != null) {
+            sendMessage(sessionId, message);
         } else {
             log.warn("Cannot send message to player {} - no active session", playerId);
         }
@@ -110,7 +113,8 @@ public class ConnectionManager {
     // Broadcast methods removed - use MessageRouter with RoomService instead
     
     public void broadcastToAll(BaseMessage message) {
-        sessions.values().forEach(session -> sendMessage(session, message));
+        String jsonMessage = gson.toJson(message);
+        gameWebSocketHandler.broadcastMessage(jsonMessage);
         log.debug("Broadcast message to all sessions: {}", message.getType());
     }
     
@@ -122,8 +126,8 @@ public class ConnectionManager {
     // Room statistics removed - use RoomService instead
     
     public boolean isSessionActive(String sessionId) {
-        WebSocketSession session = sessions.get(sessionId);
-        return session != null && session.isOpen();
+        Object session = sessions.get(sessionId);
+        return session != null;
     }
     
     public boolean isPlayerOnline(String playerId) {
@@ -141,24 +145,15 @@ public class ConnectionManager {
     
     // Health check and cleanup
     public void cleanupClosedSessions() {
-        List<String> closedSessions = sessions.entrySet().stream()
-            .filter(entry -> !entry.getValue().isOpen())
-            .map(Map.Entry::getKey)
-            .collect(Collectors.toList());
-        
-        closedSessions.forEach(this::removeSession);
-        log.info("Cleaned up {} closed sessions", closedSessions.size());
+        // TCP sockets handle their own cleanup in the handler
+        log.info("Session cleanup delegated to TCP handler");
     }
     
     public void closePlayerSession(String playerId) {
-        WebSocketSession session = getSessionByPlayerId(playerId);
-        if (session != null && session.isOpen()) {
-            try {
-                session.close();
-                log.info("Closed session for player {}", playerId);
-            } catch (IOException e) {
-                log.error("Failed to close session for player {}: {}", playerId, e.getMessage());
-            }
+        String sessionId = playerToSession.get(playerId);
+        if (sessionId != null) {
+            removeSession(sessionId);
+            log.info("Closed session for player {}", playerId);
         }
     }
     
@@ -167,7 +162,7 @@ public class ConnectionManager {
         return Map.of(
             "totalSessions", sessions.size(),
             "totalPlayers", playerToSession.size(),
-            "activeSessions", sessions.values().stream().mapToInt(session -> session.isOpen() ? 1 : 0).sum()
+            "activeSessions", sessions.size()
         );
     }
     

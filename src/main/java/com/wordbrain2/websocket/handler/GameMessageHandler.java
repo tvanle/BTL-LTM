@@ -6,7 +6,6 @@ import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
 
@@ -24,8 +23,8 @@ public class GameMessageHandler {
         this.connectionManager = connectionManager;
     }
     
-    public Map<String, Object> handleStartGame(WebSocketSession session, BaseMessage message) {
-        String playerId = connectionManager.getPlayerId(session.getId());
+    public Map<String, Object> handleStartGame(String sessionId, BaseMessage message) {
+        String playerId = connectionManager.getPlayerId(sessionId);
         String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {
@@ -62,8 +61,8 @@ public class GameMessageHandler {
         return createErrorResult("Không thể bắt đầu trò chơi.");
     }
     
-    public Map<String, Object> handleSubmitWord(WebSocketSession session, BaseMessage message) {
-        String playerId = connectionManager.getPlayerId(session.getId());
+    public Map<String, Object> handleSubmitWord(String sessionId, BaseMessage message) {
+        String playerId = connectionManager.getPlayerId(sessionId);
         String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {
@@ -79,8 +78,8 @@ public class GameMessageHandler {
         return createErrorResult("Không thể xử lý từ.");
     }
     
-    public Map<String, Object> handleRequestHint(WebSocketSession session, BaseMessage message) {
-        String playerId = connectionManager.getPlayerId(session.getId());
+    public Map<String, Object> handleRequestHint(String sessionId, BaseMessage message) {
+        String playerId = connectionManager.getPlayerId(sessionId);
         String roomCode = roomService.getPlayerRoom(playerId);
         
         if (playerId == null || roomCode == null) {

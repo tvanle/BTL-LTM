@@ -9,10 +9,6 @@ import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -79,11 +75,8 @@ public class MessageBroadcastService {
             if (sessionId == null) continue;
             if (excludeSessionId != null && excludeSessionId.equals(sessionId)) continue;
             
-            WebSocketSession session = connectionManager.getSession(sessionId);
-            if (session != null && session.isOpen()) {
-                sendMessage(session, message);
-                sentCount++;
-            }
+            connectionManager.sendMessage(sessionId, message);
+            sentCount++;
         }
         
         log.debug("Broadcast message {} to room {} ({} players)", message.getType(), roomCode, sentCount);
@@ -92,27 +85,9 @@ public class MessageBroadcastService {
     /**
      * Send a message to a specific session
      */
-    public void sendMessage(WebSocketSession session, MessageType type, Object data) {
+    public void sendMessageToSession(String sessionId, MessageType type, Object data) {
         BaseMessage message = new BaseMessage(type, convertToMap(data));
-        sendMessage(session, message);
-    }
-    
-    /**
-     * Send a BaseMessage to a specific session
-     */
-    public void sendMessage(WebSocketSession session, BaseMessage message) {
-        if (session == null || !session.isOpen()) {
-            log.warn("Cannot send message - session is null or closed");
-            return;
-        }
-        
-        try {
-            String jsonMessage = gson.toJson(message);
-            session.sendMessage(new TextMessage(jsonMessage));
-            log.debug("Message sent to session {}: {}", session.getId(), message.getType());
-        } catch (IOException e) {
-            log.error("Failed to send message to session {}: {}", session.getId(), e.getMessage());
-        }
+        connectionManager.sendMessage(sessionId, message);
     }
     
     /**
@@ -127,12 +102,7 @@ public class MessageBroadcastService {
      * Send a BaseMessage to a specific player
      */
     public void sendMessageToPlayer(String playerId, BaseMessage message) {
-        WebSocketSession session = connectionManager.getSessionByPlayerId(playerId);
-        if (session != null) {
-            sendMessage(session, message);
-        } else {
-            log.warn("Cannot send message to player {} - no active session", playerId);
-        }
+        connectionManager.sendMessageToPlayer(playerId, message);
     }
     
     /**
@@ -168,15 +138,15 @@ public class MessageBroadcastService {
     /**
      * Send error message to a session
      */
-    public void sendError(WebSocketSession session, String error) {
-        sendMessage(session, MessageType.ERROR, Map.of("error", error));
+    public void sendErrorToSession(String sessionId, String error) {
+        sendMessageToSession(sessionId, MessageType.ERROR, Map.of("error", error));
     }
     
     /**
      * Send invalid action message to a session
      */
-    public void sendInvalidAction(WebSocketSession session, String reason) {
-        sendMessage(session, MessageType.INVALID_ACTION, Map.of("reason", reason));
+    public void sendInvalidActionToSession(String sessionId, String reason) {
+        sendMessageToSession(sessionId, MessageType.INVALID_ACTION, Map.of("reason", reason));
     }
     
     private Map<String, Object> convertToMap(Object data) {

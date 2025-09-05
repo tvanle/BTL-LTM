@@ -6,7 +6,6 @@ import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.websocket.message.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
 
@@ -22,44 +21,44 @@ public class RoomMessageHandler {
         this.connectionManager = connectionManager;
     }
     
-    public Map<String, Object> handleCreateRoom(WebSocketSession session, BaseMessage message) {
+    public Map<String, Object> handleCreateRoom(String sessionId, BaseMessage message) {
         Map<?, ?> data = (Map<?, ?>) message.getData();
         String playerName = getString(data, "playerName");
         String topic = getString(data, "topic");
         
-        var result = roomService.createRoom(playerName, topic, session.getId());
+        var result = roomService.createRoom(playerName, topic, sessionId);
         
         if (result != null) {
             String playerId = (String) result.get("playerId");
             
             // Only register session-player mapping
-            connectionManager.registerPlayer(session.getId(), playerId);
+            connectionManager.registerPlayer(sessionId, playerId);
             // Room-player relationship is already handled by RoomService
         }
         
         return result;
     }
     
-    public Map<String, Object> handleJoinRoom(WebSocketSession session, BaseMessage message) {
+    public Map<String, Object> handleJoinRoom(String sessionId, BaseMessage message) {
         Map<?, ?> data = (Map<?, ?>) message.getData();
         String roomCode = getString(data, "roomCode");
         String playerName = getString(data, "playerName");
         
-        var result = roomService.joinRoom(roomCode, playerName, session.getId());
+        var result = roomService.joinRoom(roomCode, playerName, sessionId);
         
         if (result != null) {
             String playerId = (String) result.get("playerId");
             
             // Only register session-player mapping
-            connectionManager.registerPlayer(session.getId(), playerId);
+            connectionManager.registerPlayer(sessionId, playerId);
             // Room-player relationship is already handled by RoomService
         }
         
         return result;
     }
     
-    public Map<String, Object> handleLeaveRoom(WebSocketSession session, BaseMessage message) {
-        String playerId = resolvePlayerId(session, message);
+    public Map<String, Object> handleLeaveRoom(String sessionId, BaseMessage message) {
+        String playerId = resolvePlayerId(sessionId, message);
         String roomCode = resolveRoomCode(playerId, message);
         
         if (playerId == null || roomCode == null) {
@@ -70,7 +69,7 @@ public class RoomMessageHandler {
         roomService.removePlayer(roomCode, playerId);
         
         // IMPORTANT: Clear the session-player mapping so they can join again with new ID
-        connectionManager.unregisterPlayer(session.getId());
+        connectionManager.unregisterPlayer(sessionId);
         
         return Map.of(
             "success", true,
@@ -79,8 +78,8 @@ public class RoomMessageHandler {
         );
     }
     
-    public Map<String, Object> handlePlayerReady(WebSocketSession session, BaseMessage message) {
-        String playerId = resolvePlayerId(session, message);
+    public Map<String, Object> handlePlayerReady(String sessionId, BaseMessage message) {
+        String playerId = resolvePlayerId(sessionId, message);
         String roomCode = resolveRoomCode(playerId, message);
         
         if (playerId == null || roomCode == null) {
@@ -114,8 +113,8 @@ public class RoomMessageHandler {
         // Room-player relationship should be handled by RoomService
     }
     
-    private String resolvePlayerId(WebSocketSession session, BaseMessage message) {
-        String playerId = connectionManager.getPlayerId(session.getId());
+    private String resolvePlayerId(String sessionId, BaseMessage message) {
+        String playerId = connectionManager.getPlayerId(sessionId);
         if (playerId == null && message.getData() != null) {
             Map<?, ?> data = (Map<?, ?>) message.getData();
             playerId = getString(data, "playerId");
