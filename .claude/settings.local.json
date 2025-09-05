@@ -5,7 +5,21 @@
       "Bash(mvn clean:*)",
       "Bash(dir:*)",
       "Bash(mvn:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\controller\\websocket/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\controller\\websocket/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\controller\\websocket/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\controller\\websocket/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\config/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\websocket\\handler/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\websocket\\handler/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\websocket\\handler/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\service\\messaging/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\service\\messaging/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\websocket\\handler/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\java\\com\\wordbrain2\\websocket\\handler/**)",
+      "Read(/C:\\Users\\PC\\Documents\\Java\\Crossword Game Online\\src\\main\\resources\\static\\js\\core/**)"
     ],
     "deny": [],
     "ask": []

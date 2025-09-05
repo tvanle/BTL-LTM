@@ -5,10 +5,8 @@ import com.wordbrain2.model.entity.GameSession;
 import com.wordbrain2.model.entity.Player;
 import com.wordbrain2.model.entity.Room;
 import com.wordbrain2.model.enums.GamePhase;
-import com.wordbrain2.model.enums.MessageType;
 import com.wordbrain2.model.enums.SubmissionResult;
 import com.wordbrain2.model.game.*;
-import com.wordbrain2.service.event.EventBusService;
 import com.wordbrain2.service.game.DictionaryService;
 import com.wordbrain2.service.game.GridGeneratorService;
 import com.wordbrain2.service.game.PathValidatorService;
@@ -35,7 +33,6 @@ public class GameEngine {
     private final StatisticsService statisticsService;
     private final GameConfig gameConfig;
     private final TimerService timerService;
-    private final EventBusService eventBusService;
     
     public GameEngine(RoomService roomService, 
                       GridGeneratorService gridGenerator,
@@ -45,8 +42,7 @@ public class GameEngine {
                       PathValidatorService pathValidator,
                       StatisticsService statisticsService,
                       GameConfig gameConfig,
-                      TimerService timerService,
-                      EventBusService eventBusService) {
+                      TimerService timerService) {
         this.roomService = roomService;
         this.gridGenerator = gridGenerator;
         this.wordValidator = wordValidator;
@@ -56,7 +52,6 @@ public class GameEngine {
         this.statisticsService = statisticsService;
         this.gameConfig = gameConfig;
         this.timerService = timerService;
-        this.eventBusService = eventBusService;
     }
     
     public Map<String, Object> startGame(String roomCode) {
@@ -408,42 +403,6 @@ public class GameEngine {
         result.put("status", "RESUMED");
         result.put("roomCode", roomCode);
         return result;
-    }
-    
-    public void handleLevelEnd(String roomCode) {
-        Room room = roomService.getRoom(roomCode);
-        if (room == null || room.getGameSession() == null) {
-            return;
-        }
-        
-        GameSession session = room.getGameSession();
-        session.setPhase(GamePhase.LEVEL_END);
-        
-        // Stop the level timer
-        timerService.stopTimer(roomCode + "_level");
-        
-        // Schedule transition to next level after 5 seconds
-        timerService.startTimer(roomCode + "_transition", 5,
-            () -> {}, // No tick action
-            () -> {
-                // Auto transition to next level
-                if (!session.isLastLevel()) {
-                    session.nextLevel();
-                    Map<String, Object> nextLevelData = startLevel(roomCode, session.getCurrentLevelIndex() + 1);
-                    
-                    // Broadcast next level to all players
-                    eventBusService.broadcastToRoom(roomCode, MessageType.LEVEL_START.name(), nextLevelData);
-                } else {
-                    // Game finished
-                    session.endGame();
-                    Map<String, Object> gameEndData = Map.of(
-                        "finalScores", session.getPlayerScores(),
-                        "winner", determineWinner(session.getPlayerScores())
-                    );
-                    eventBusService.broadcastToRoom(roomCode, MessageType.GAME_END.name(), gameEndData);
-                }
-            }
-        );
     }
     
     private String determineWinner(Map<String, Integer> scores) {

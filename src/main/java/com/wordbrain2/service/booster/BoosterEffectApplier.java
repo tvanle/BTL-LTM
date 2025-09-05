@@ -7,8 +7,9 @@ import com.wordbrain2.model.entity.Room;
 import com.wordbrain2.service.core.PlayerService;
 import com.wordbrain2.service.core.RoomService;
 import com.wordbrain2.service.game.TimerService;
-import com.wordbrain2.service.event.EventBusService;
 import com.wordbrain2.service.scoring.StreakManager;
+import com.wordbrain2.service.messaging.MessageBroadcastService;
+import com.wordbrain2.model.enums.MessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -28,7 +29,7 @@ public class BoosterEffectApplier {
     private TimerService timerService;
     
     @Autowired
-    private EventBusService eventBusService;
+    private MessageBroadcastService messageBroadcastService;
     
     @Autowired
     private StreakManager streakManager;
@@ -62,7 +63,10 @@ public class BoosterEffectApplier {
         }
         
         // Broadcast booster usage to all players
-        eventBusService.publishBoosterUsed(roomCode, playerId, type);
+        Map<String, Object> boosterData = new HashMap<>();
+        boosterData.put("playerId", playerId);
+        boosterData.put("type", type.toString());
+        messageBroadcastService.broadcastToRoom(roomCode, MessageType.BOOSTER_USED, boosterData);
     }
     
     private void applyDoubleUp(String playerId, String roomCode) {
@@ -71,7 +75,7 @@ public class BoosterEffectApplier {
         data.put("playerId", playerId);
         data.put("type", "DOUBLE_UP");
         data.put("message", "2x points activated!");
-        eventBusService.publishEvent(roomCode, "BOOSTER_ACTIVATED", data);
+        messageBroadcastService.broadcastToRoom(roomCode, MessageType.BOOSTER_ACTIVATED, data);
     }
     
     private void applyFreeze(String playerId, String roomCode) {
@@ -90,7 +94,7 @@ public class BoosterEffectApplier {
             freezeData.put("targetId", targetId);
             freezeData.put("duration", 3000);
             freezeData.put("sourceId", playerId);
-            eventBusService.publishEvent(roomCode, "FREEZE_EFFECT", freezeData);
+            messageBroadcastService.broadcastToRoom(roomCode, MessageType.FREEZE_EFFECT, freezeData);
         });
     }
     
@@ -102,7 +106,7 @@ public class BoosterEffectApplier {
         Map<String, Object> revealData = new HashMap<>();
         revealData.put("playerId", playerId);
         revealData.put("message", "Hint revealed!");
-        eventBusService.publishEvent(roomCode, "REVEAL_REQUESTED", revealData);
+        messageBroadcastService.broadcastToRoom(roomCode, MessageType.REVEAL_REQUESTED, revealData);
     }
     
     private void applyTimeBonus(String playerId, String roomCode) {
@@ -113,7 +117,7 @@ public class BoosterEffectApplier {
         timeData.put("playerId", playerId);
         timeData.put("seconds", 5);
         timeData.put("message", "+5 seconds!");
-        eventBusService.publishEvent(roomCode, "TIME_ADDED", timeData);
+        messageBroadcastService.broadcastToRoom(roomCode, MessageType.TIME_ADDED, timeData);
     }
     
     private void applyShield(String playerId, String roomCode) {
@@ -121,7 +125,7 @@ public class BoosterEffectApplier {
         Map<String, Object> shieldData = new HashMap<>();
         shieldData.put("playerId", playerId);
         shieldData.put("message", "Shield activated!");
-        eventBusService.publishEvent(roomCode, "SHIELD_ACTIVATED", shieldData);
+        messageBroadcastService.broadcastToRoom(roomCode, MessageType.SHIELD_ACTIVATED, shieldData);
     }
     
     private void applyStreakSave(String playerId, String roomCode) {
@@ -131,7 +135,7 @@ public class BoosterEffectApplier {
         Map<String, Object> streakData = new HashMap<>();
         streakData.put("playerId", playerId);
         streakData.put("message", "Streak protection active!");
-        eventBusService.publishEvent(roomCode, "STREAK_SAVED", streakData);
+        messageBroadcastService.broadcastToRoom(roomCode, MessageType.STREAK_SAVED, streakData);
     }
     
     private void applySkipHalf(String playerId, String roomCode) {
@@ -140,7 +144,7 @@ public class BoosterEffectApplier {
         Map<String, Object> skipData = new HashMap<>();
         skipData.put("playerId", playerId);
         skipData.put("pointsRatio", 0.5);
-        eventBusService.publishEvent(roomCode, "LEVEL_SKIP_REQUESTED", skipData);
+        messageBroadcastService.broadcastToRoom(roomCode, MessageType.LEVEL_SKIP_REQUESTED, skipData);
     }
     
     // These methods now take booster instances as parameters

@@ -21,6 +21,16 @@ public enum MessageType {
     REQUEST_GRID_UPDATE,
     LEVEL_COMPLETE,
     
+    // Booster Effects
+    BOOSTER_USED,
+    BOOSTER_ACTIVATED,
+    FREEZE_EFFECT,
+    REVEAL_REQUESTED,
+    TIME_ADDED,
+    SHIELD_ACTIVATED,
+    STREAK_SAVED,
+    LEVEL_SKIP_REQUESTED,
+    
     // Server Responses
     CONNECTION_SUCCESS,
     ROOM_CREATED,
